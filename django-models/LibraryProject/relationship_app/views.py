@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.views.generic.detail import DetailView
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Book
@@ -46,40 +47,26 @@ def register_view(request):
     """
     User registration view.
     Handles user account creation with username, email, and password.
+    Uses Django's UserCreationForm for form validation.
     """
     if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-        password_confirm = request.POST.get('password_confirm')
-
-        # Validate inputs
-        if not all([username, email, password, password_confirm]):
-            messages.error(request, 'All fields are required.')
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, 'Registration successful! Please log in.')
+            return redirect('relationship_app:login')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
             return redirect('relationship_app:register')
+    else:
+        form = UserCreationForm()
 
-        if password != password_confirm:
-            messages.error(request, 'Passwords do not match.')
-            return redirect('relationship_app:register')
-
-        if User.objects.filter(username=username).exists():
-            messages.error(request, 'Username already exists.')
-            return redirect('relationship_app:register')
-
-        if User.objects.filter(email=email).exists():
-            messages.error(request, 'Email already registered.')
-            return redirect('relationship_app:register')
-
-        # Create user
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password
-        )
-        messages.success(request, 'Registration successful! Please log in.')
-        return redirect('relationship_app:login')
-
-    return render(request, 'relationship_app/register.html')
+    context = {
+        'form': form
+    }
+    return render(request, 'relationship_app/register.html', context)
 
 
 def login_view(request):
