@@ -4,7 +4,8 @@ from django.contrib.auth import authenticate, logout
 from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.decorators import login_required, user_passes_test, permission_required
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import permission_required
 from django.contrib import messages
 from django.http import HttpResponseForbidden
 from .models import Book, Library, UserProfile, Author
