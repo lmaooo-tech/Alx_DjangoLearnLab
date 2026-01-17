@@ -105,3 +105,29 @@ def logout_view(request):
         logout(request)
         messages.success(request, f'Goodbye, {username}! You have been logged out.')
     return redirect('relationship_app:list_books')
+
+
+def register(request):
+    """
+    User registration view.
+    Handles user account creation with username, email, and password.
+    Uses Django's UserCreationForm for form validation.
+    """
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, 'Registration successful! Please log in.')
+            return redirect('relationship_app:login')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+            return redirect('relationship_app:register')
+    else:
+        form = UserCreationForm()
+
+    context = {
+        'form': form
+    }
+    return render(request, 'relationship_app/register.html', context)
