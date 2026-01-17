@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Librarian Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-info text-white">
+                    <h2 class="mb-0">
+                        <i class="fas fa-book-reader"></i> Librarian Dashboard
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success" role="alert">
+                        <h4 class="alert-heading">Welcome, {{ user.username }}!</h4>
+                        <p>You are logged in as a <strong>{{ role }}</strong>.</p>
+                    </div>
+
+                    <hr>
+
+                    <h4>Librarian Responsibilities:</h4>
+                    <ul class="list-group mb-4">
+                        <li class="list-group-item">
+                            <i class="fas fa-book"></i> Manage Book Catalog
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-building"></i> Manage Library Locations
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-pen"></i> Add/Edit Book Information
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-users"></i> Assist Members
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-clipboard-list"></i> Track Library Inventory
+                        </li>
+                    </ul>
+
+                    <hr>
+
+                    {% if libraries %}
+                    <h4 class="mt-4 mb-3">Managed Libraries:</h4>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-info">
+                                <tr>
+                                    <th>Library Name</th>
+                                    <th>Number of Books</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for library in libraries %}
+                                <tr>
+                                    <td>{{ library.name }}</td>
+                                    <td><span class="badge bg-info">{{ library.books.count }}</span></td>
+                                    <td>
+                                        <a href="{% url 'relationship_app:library_detail' library.pk %}" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i> No libraries available at the moment.
+                    </div>
+                    {% endif %}
+
+                    <hr>
+
+                    <div class="mt-4">
+                        <a href="{% url 'relationship_app:list_books' %}" class="btn btn-primary">
+                            <i class="fas fa-book"></i> View All Books
+                        </a>
+                        <a href="{% url 'relationship_app:logout' %}" class="btn btn-danger">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 900px;
+    }
+    .card-header {
+        padding: 1.5rem;
+    }
+    .list-group-item {
+        border-left: 4px solid #17a2b8;
+        padding-left: 1rem;
+    }
+    .list-group-item i {
+        margin-right: 10px;
+        color: #17a2b8;
+    }
+    .table-info thead {
+        background-color: #e7f3ff;
+    }
+</style>
+{% endblock %}

@@ -4,10 +4,9 @@ from django.contrib.auth import authenticate, logout
 from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from .models import Book
-from .models import Library
+from .models import Book, Library, UserProfile
 
 # Create your views here.
 
@@ -131,3 +130,86 @@ def register(request):
         'form': form
     }
     return render(request, 'relationship_app/register.html', context)
+
+# Role-Based Access Control Functions
+
+def is_admin(user):
+    """
+    Check if the user has the 'Admin' role.
+    """
+    if user.is_authenticated:
+        try:
+            return user.profile.role == 'Admin'
+        except UserProfile.DoesNotExist:
+            return False
+    return False
+
+
+def is_librarian(user):
+    """
+    Check if the user has the 'Librarian' role.
+    """
+    if user.is_authenticated:
+        try:
+            return user.profile.role == 'Librarian'
+        except UserProfile.DoesNotExist:
+            return False
+    return False
+
+
+def is_member(user):
+    """
+    Check if the user has the 'Member' role.
+    """
+    if user.is_authenticated:
+        try:
+            return user.profile.role == 'Member'
+        except UserProfile.DoesNotExist:
+            return False
+    return False
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_view(request):
+    """
+    Admin-only view for administrative tasks.
+    Only users with the 'Admin' role can access this view.
+    """
+    context = {
+        'user': request.user,
+        'role': request.user.profile.role,
+    }
+    return render(request, 'relationship_app/admin_view.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def librarian_view(request):
+    """
+    Librarian-only view for library management tasks.
+    Only users with the 'Librarian' role can access this view.
+    """
+    libraries = Library.objects.all()
+    context = {
+        'user': request.user,
+        'role': request.user.profile.role,
+        'libraries': libraries,
+    }
+    return render(request, 'relationship_app/librarian_view.html', context)
+
+
+@login_required
+@user_passes_test(is_member)
+def member_view(request):
+    """
+    Member-only view for regular members.
+    Only users with the 'Member' role can access this view.
+    """
+    books = Book.objects.all().select_related('author')
+    context = {
+        'user': request.user,
+        'role': request.user.profile.role,
+        'books': books,
+    }
+    return render(request, 'relationship_app/member_view.html', context)
