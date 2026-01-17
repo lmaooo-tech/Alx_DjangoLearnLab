@@ -13,7 +13,7 @@ def list_all_books(request):
     context = {
         'books': books
     }
-    return render(request, 'relationship_app/books_list.html', context)
+    return render(request, 'relationship_app/list_books.html', context)
 
 
 class LibraryDetailView(DetailView):
