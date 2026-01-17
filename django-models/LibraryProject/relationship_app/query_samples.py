@@ -30,6 +30,15 @@ def get_books_in_library(library_id):
     return books
 
 
+# Query 2b: Get library by name
+def get_library_by_name(library_name):
+    """
+    Query a library by its name.
+    """
+    library = Library.objects.get(name=library_name)
+    return library
+
+
 # Query 3: Retrieve the librarian for a library
 # Using OneToOneField relationship
 def get_librarian_for_library(library_id):
