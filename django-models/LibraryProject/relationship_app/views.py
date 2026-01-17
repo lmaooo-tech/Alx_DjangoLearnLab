@@ -1,12 +1,13 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic.detail import DetailView
 from django.contrib.auth import authenticate, logout
 from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, user_passes_test, permission_required
 from django.contrib import messages
-from .models import Book, Library, UserProfile
+from django.http import HttpResponseForbidden
+from .models import Book, Library, UserProfile, Author
 
 # Create your views here.
 
@@ -213,3 +214,93 @@ def member_view(request):
         'books': books,
     }
     return render(request, 'relationship_app/member_view.html', context)
+
+
+# Book Management Views with Permission Checks
+
+@login_required
+@permission_required('relationship_app.can_add_book', raise_exception=True)
+def add_book(request):
+    """
+    View to add a new book to the database.
+    Only users with the 'can_add_book' permission can access this view.
+    """
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        author_id = request.POST.get('author')
+
+        if not title or not author_id:
+            messages.error(request, 'Please provide both title and author.')
+            return redirect('relationship_app:add_book')
+
+        try:
+            author = Author.objects.get(id=author_id)
+            book = Book.objects.create(title=title, author=author)
+            messages.success(request, f'Book "{book.title}" added successfully!')
+            return redirect('relationship_app:list_books')
+        except Author.DoesNotExist:
+            messages.error(request, 'Selected author does not exist.')
+            return redirect('relationship_app:add_book')
+    else:
+        authors = Author.objects.all()
+        context = {
+            'authors': authors,
+        }
+        return render(request, 'relationship_app/add_book_form.html', context)
+
+
+@login_required
+@permission_required('relationship_app.can_change_book', raise_exception=True)
+def edit_book(request, pk):
+    """
+    View to edit an existing book.
+    Only users with the 'can_change_book' permission can access this view.
+    """
+    book = get_object_or_404(Book, pk=pk)
+
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        author_id = request.POST.get('author')
+
+        if not title or not author_id:
+            messages.error(request, 'Please provide both title and author.')
+            return redirect('relationship_app:edit_book', pk=pk)
+
+        try:
+            author = Author.objects.get(id=author_id)
+            book.title = title
+            book.author = author
+            book.save()
+            messages.success(request, f'Book "{book.title}" updated successfully!')
+            return redirect('relationship_app:list_books')
+        except Author.DoesNotExist:
+            messages.error(request, 'Selected author does not exist.')
+            return redirect('relationship_app:edit_book', pk=pk)
+    else:
+        authors = Author.objects.all()
+        context = {
+            'book': book,
+            'authors': authors,
+        }
+        return render(request, 'relationship_app/edit_book_form.html', context)
+
+
+@login_required
+@permission_required('relationship_app.can_delete_book', raise_exception=True)
+def delete_book(request, pk):
+    """
+    View to delete a book from the database.
+    Only users with the 'can_delete_book' permission can access this view.
+    """
+    book = get_object_or_404(Book, pk=pk)
+
+    if request.method == 'POST':
+        book_title = book.title
+        book.delete()
+        messages.success(request, f'Book "{book_title}" deleted successfully!')
+        return redirect('relationship_app:list_books')
+    else:
+        context = {
+            'book': book,
+        }
+        return render(request, 'relationship_app/delete_book_confirm.html', context)

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Book - Confirmation{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg">
+                <div class="card-header bg-danger text-white">
+                    <h2 class="mb-0">
+                        <i class="fas fa-trash-alt"></i> Delete Book - Confirmation
+                    </h2>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> This action cannot be undone!
+                    </div>
+
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="fas fa-book"></i> {{ book.title }}
+                            </h5>
+                            <p class="card-text">
+                                <strong>Author:</strong> {{ book.author.name }}<br>
+                                <strong>Book ID:</strong> {{ book.pk }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-danger" role="alert">
+                        <p class="mb-0">
+                            Are you sure you want to delete the book <strong>"{{ book.title }}"</strong>?
+                            This book will be permanently removed from the database.
+                        </p>
+                    </div>
+
+                    <form method="POST" action="{% url 'relationship_app:delete_book' book.pk %}">
+                        {% csrf_token %}
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'relationship_app:list_books' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash-alt"></i> Yes, Delete Book
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr>
+
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle"></i> <strong>Information:</strong><br>
+                        Deleting a book will remove it from all associated libraries and the catalog.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 600px;
+    }
+    .card-header {
+        padding: 1.5rem;
+    }
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+</style>
+{% endblock %}

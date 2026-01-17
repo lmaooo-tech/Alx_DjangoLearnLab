@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Add Book{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg">
+                <div class="card-header bg-success text-white">
+                    <h2 class="mb-0">
+                        <i class="fas fa-plus-circle"></i> Add New Book
+                    </h2>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="POST" action="{% url 'relationship_app:add_book' %}" class="needs-validation">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="title" class="form-label">
+                                <i class="fas fa-book"></i> Book Title
+                            </label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="title" 
+                                name="title" 
+                                placeholder="Enter book title" 
+                                required
+                            >
+                            <small class="form-text text-muted">The title of the book you want to add.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="author" class="form-label">
+                                <i class="fas fa-user-edit"></i> Author
+                            </label>
+                            <select 
+                                class="form-select" 
+                                id="author" 
+                                name="author" 
+                                required
+                            >
+                                <option value="">-- Select an Author --</option>
+                                {% for author in authors %}
+                                    <option value="{{ author.id }}">{{ author.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Choose the author of the book. If the author is not listed, please add them first.</small>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'relationship_app:list_books' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Add Book
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if not authors %}
+                    <div class="alert alert-warning mt-3" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i> No authors available. Please add an author first.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 600px;
+    }
+    .card-header {
+        padding: 1.5rem;
+    }
+    .form-label {
+        font-weight: 600;
+        color: #333;
+    }
+    .form-text.text-muted {
+        display: block;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}
