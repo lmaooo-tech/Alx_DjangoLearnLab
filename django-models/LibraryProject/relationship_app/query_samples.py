@@ -18,6 +18,15 @@ def get_books_by_author(author_id):
     return books
 
 
+# Query 1b: Get author by name
+def get_author_by_name(author_name):
+    """
+    Query an author by their name.
+    """
+    author = Author.objects.get(name=author_name)
+    return author
+
+
 # Query 2: List all books in a library
 # Using ManyToManyField relationship
 def get_books_in_library(library_id):
