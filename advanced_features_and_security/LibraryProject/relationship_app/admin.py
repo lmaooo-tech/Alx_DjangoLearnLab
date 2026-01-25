@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Author, Book, Library, Librarian, UserProfile
+from bookshelf.models import CustomUser
+from .models import Author, Book, Library, Librarian, UserProfile
 
 
 @admin.register(CustomUser)
