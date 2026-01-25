@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic.detail import DetailView
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.auth import authenticate, logout
 from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
@@ -11,10 +12,11 @@ from .models import Book, Library, UserProfile, Author
 
 # Create your views here.
 
+@login_required
+@permission_required('relationship_app.can_view', raise_exception=True)
 def list_all_books(request):
     """
-    Function-based view that lists all books stored in the database.
-    Displays book titles and their authors.
+    List all books for users who have the can_view permission.
     """
     books = Book.objects.all().select_related('author')
     context = {
@@ -23,7 +25,7 @@ def list_all_books(request):
     return render(request, 'relationship_app/list_books.html', context)
 
 
-class LibraryDetailView(DetailView):
+class LibraryDetailView(PermissionRequiredMixin, DetailView):
     """
     Class-based view that displays details for a specific library.
     Shows all books available in that library.
@@ -33,6 +35,8 @@ class LibraryDetailView(DetailView):
     template_name = 'relationship_app/library_detail.html'
     context_object_name = 'library'
     pk_url_kwarg = 'pk'
+    permission_required = 'relationship_app.can_view'
+    raise_exception = True
 
     def get_context_data(self, **kwargs):
         """Add books to the context."""
@@ -219,11 +223,11 @@ def member_view(request):
 # Book Management Views with Permission Checks
 
 @login_required
-@permission_required('relationship_app.can_add_book', raise_exception=True)
+@permission_required('relationship_app.can_create', raise_exception=True)
 def add_book(request):
     """
     View to add a new book to the database.
-    Only users with the 'can_add_book' permission can access this view.
+    Only users with the 'can_create' permission can access this view.
     """
     if request.method == 'POST':
         title = request.POST.get('title')
@@ -250,11 +254,11 @@ def add_book(request):
 
 
 @login_required
-@permission_required('relationship_app.can_change_book', raise_exception=True)
+@permission_required('relationship_app.can_edit', raise_exception=True)
 def edit_book(request, pk):
     """
     View to edit an existing book.
-    Only users with the 'can_change_book' permission can access this view.
+    Only users with the 'can_edit' permission can access this view.
     """
     book = get_object_or_404(Book, pk=pk)
 
@@ -286,11 +290,11 @@ def edit_book(request, pk):
 
 
 @login_required
-@permission_required('relationship_app.can_delete_book', raise_exception=True)
+@permission_required('relationship_app.can_delete', raise_exception=True)
 def delete_book(request, pk):
     """
     View to delete a book from the database.
-    Only users with the 'can_delete_book' permission can access this view.
+    Only users with the 'can_delete' permission can access this view.
     """
     book = get_object_or_404(Book, pk=pk)
 
