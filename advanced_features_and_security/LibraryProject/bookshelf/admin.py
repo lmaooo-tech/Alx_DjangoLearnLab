@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Book
+from django.contrib.auth.admin import UserAdmin
+from .models import Book, CustomUser
 
 
 class BookAdmin(admin.ModelAdmin):
@@ -27,3 +28,20 @@ class BookAdmin(admin.ModelAdmin):
 
 # Register the Book model with the custom admin configuration
 admin.site.register(Book, BookAdmin)
+
+
+class CustomUserAdmin(UserAdmin):
+    """Admin configuration for the CustomUser model."""
+
+    model = CustomUser
+    list_display = ['username', 'email', 'is_staff', 'is_superuser', 'date_of_birth']
+    fieldsets = UserAdmin.fieldsets + (
+        ('Additional Info', {'fields': ('date_of_birth', 'profile_photo')}),
+    )
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ('Additional Info', {'fields': ('date_of_birth', 'profile_photo')}),
+    )
+
+
+# Register the CustomUser model with the custom admin configuration
+admin.site.register(CustomUser, CustomUserAdmin)
