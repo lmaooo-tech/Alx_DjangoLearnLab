@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required, permission_required
 from .models import Book
-from .forms import BookSearchForm, ExampleForm
+from .forms import BookSearchForm
 
 
 @login_required
