@@ -129,12 +129,60 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Custom user model
 AUTH_USER_MODEL = 'bookshelf.CustomUser'
 
-# Security hardening (enable HTTPS-only cookies and browser protections)
+# ============================================================================
+# HTTPS AND SECURITY CONFIGURATION
+# ============================================================================
+
+# HTTPS Enforcement and HSTS (HTTP Strict-Transport-Security)
+# These settings enforce secure HTTPS connections and prevent downgrade attacks
+SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() == 'true'
+# SECURE_HSTS_SECONDS: Time in seconds browsers should only access the site via HTTPS
+# Set to 31536000 (1 year) in production after testing
+SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))
+# Include all subdomains in the HSTS policy
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('SECURE_HSTS_INCLUDE_SUBDOMAINS', 'True').lower() == 'true'
+# Allow the site to be preloaded in browsers' HSTS preload lists
+SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', 'True').lower() == 'true'
+
+# ============================================================================
+# SECURE COOKIES CONFIGURATION
+# ============================================================================
+
+# SESSION_COOKIE_SECURE: Ensure session cookies are only transmitted over HTTPS
+# This prevents session hijacking over insecure HTTP connections
 SESSION_COOKIE_SECURE = True
+
+# CSRF_COOKIE_SECURE: Ensure CSRF protection cookies are only transmitted over HTTPS
+# This protects against cross-site request forgery attacks over insecure connections
 CSRF_COOKIE_SECURE = True
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Additional cookie security settings
+# Set SameSite attribute to prevent cookies from being sent in cross-site requests
+SESSION_COOKIE_SAMESITE = 'Strict'
+CSRF_COOKIE_SAMESITE = 'Strict'
+
+# HttpOnly flag is automatically set for session cookies in Django
+# This prevents JavaScript from accessing the session cookie
+
+# ============================================================================
+# SECURE HEADERS CONFIGURATION
+# ============================================================================
+
+# X_FRAME_OPTIONS: Prevent clickjacking attacks by denying the site from being framed
+# Options: 'DENY', 'SAMEORIGIN', or 'ALLOW-FROM origin'
 X_FRAME_OPTIONS = 'DENY'
+
+# SECURE_CONTENT_TYPE_NOSNIFF: Prevent browsers from MIME-sniffing responses
+# This protects against MIME-sniffing attacks by forcing the browser to respect content-type headers
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# SECURE_BROWSER_XSS_FILTER: Enable the browser's built-in XSS protection filter
+# This helps prevent reflected cross-site scripting (XSS) attacks
+SECURE_BROWSER_XSS_FILTER = True
+
+# SECURE_REFERRER_POLICY: Control how much referrer information is shared
+# 'strict-origin-when-cross-origin' prevents exposing full URLs to other sites
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # Content Security Policy (simple default; adjust per deployment needs)
 CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self';"
