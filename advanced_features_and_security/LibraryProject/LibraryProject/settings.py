@@ -144,6 +144,15 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('SECURE_HSTS_INCLUDE_SUBDOMAINS', 'Tr
 # Allow the site to be preloaded in browsers' HSTS preload lists
 SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', 'True').lower() == 'true'
 
+# SECURE_PROXY_SSL_HEADER: Trust X-Forwarded-Proto header from proxy (Nginx, Apache, etc.)
+# When Django is behind a reverse proxy, the proxy communicates with Django via HTTP locally
+# but the client communicates with the proxy via HTTPS. This setting tells Django to trust
+# the proxy's X-Forwarded-Proto header which indicates the original protocol was HTTPS.
+# Format: (header_name, header_value) - the header_name must be an HTTP_* variable name
+# Example: When proxy sends "X-Forwarded-Proto: https", Django sees it as HTTP_X_FORWARDED_PROTO
+# This is ESSENTIAL when SECURE_SSL_REDIRECT and SECURE_*_SECURE settings are enabled.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # ============================================================================
 # SECURE COOKIES CONFIGURATION
 # ============================================================================
