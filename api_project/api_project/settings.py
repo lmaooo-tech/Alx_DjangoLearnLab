@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'api',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
@@ -117,3 +118,20 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Django REST Framework settings
+# This configuration controls how authentication works across all API endpoints
+REST_FRAMEWORK = {
+    # DEFAULT_AUTHENTICATION_CLASSES: Defines which authentication methods are enabled
+    # TokenAuthentication: Users authenticate by including a token in the Authorization header
+    # Format: Authorization: Token <token_key>
+    # Tokens are generated when users log in via the /api/auth/token/ endpoint
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
