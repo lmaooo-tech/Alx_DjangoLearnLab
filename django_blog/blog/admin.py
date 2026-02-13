@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import UserProfile, Post, Comment, Tag
+from .models import UserProfile, Post, Comment
 
 
 @admin.register(UserProfile)
