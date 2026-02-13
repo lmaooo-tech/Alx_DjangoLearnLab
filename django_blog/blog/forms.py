@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from .models import UserProfile, Post
+from .models import UserProfile, Post, Comment
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -237,3 +237,54 @@ class PostFilterForm(forms.Form):
         if sort_by and sort_by not in valid_choices:
             raise forms.ValidationError('Invalid sort option.')
         return sort_by
+
+
+class CommentForm(forms.ModelForm):
+    """Form for creating and updating blog comments with validation"""
+    
+    class Meta:
+        model = Comment
+        fields = ('content',)
+        widgets = {
+            'content': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Write your comment here...',
+                'rows': 4,
+                'id': 'id_content'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Customize field properties
+        self.fields['content'].label = 'Your Comment'
+        self.fields['content'].help_text = 'Share your thoughts... (minimum 3 characters required)'
+        self.fields['content'].required = True
+    
+    def clean_content(self):
+        """Validate comment content"""
+        content = self.cleaned_data.get('content')
+        
+        if not content:
+            raise forms.ValidationError('Comment cannot be empty.')
+        
+        content = content.strip()
+        
+        if len(content) < 3:
+            raise forms.ValidationError('Comment must be at least 3 characters long.')
+        
+        if len(content) > 5000:
+            raise forms.ValidationError('Comment cannot exceed 5000 characters.')
+        
+        return content
+    
+    def clean(self):
+        """Overall form validation"""
+        cleaned_data = super().clean()
+        content = cleaned_data.get('content', '').strip()
+        
+        # Ensure content isn't just whitespace
+        if not content:
+            raise forms.ValidationError('Please write a meaningful comment.')
+        
+        return cleaned_data

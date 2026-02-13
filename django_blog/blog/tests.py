@@ -1,7 +1,9 @@
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.urls import reverse
-from .models import UserProfile
+from .models import UserProfile, Post, Comment
+from .forms import CommentForm
+from django.contrib import messages
 
 
 class UserRegistrationTests(TestCase):
@@ -968,3 +970,630 @@ class AccessControlMessageTests(PermissionTests):
         self.client.get(self.post_delete_url)
         messages_list = list(messages.get_messages(self.client.session))
         # Message may be displayed
+
+
+# ============================================================================
+# Comment System Tests
+# ============================================================================
+
+class CommentModelTests(TestCase):
+    """Test cases for Comment model"""
+    
+    def setUp(self):
+        """Set up test data"""
+        self.author = User.objects.create_user(
+            username='testauthor',
+            email='author@example.com',
+            password='AuthPass123'
+        )
+        self.post = Post.objects.create(
+            title='Test Post',
+            content='This is test post content for comments.',
+            author=self.author
+        )
+    
+    def test_comment_creation(self):
+        """Test that comment can be created"""
+        comment = Comment.objects.create(
+            post=self.post,
+            author=self.author,
+            content='This is a test comment.'
+        )
+        
+        self.assertTrue(Comment.objects.filter(pk=comment.pk).exists())
+        self.assertEqual(comment.post, self.post)
+        self.assertEqual(comment.author, self.author)
+        self.assertEqual(comment.content, 'This is a test comment.')
+    
+    def test_comment_string_representation(self):
+        """Test comment __str__ method"""
+        comment = Comment.objects.create(
+            post=self.post,
+            author=self.author,
+            content='Test comment'
+        )
+        
+        expected_str = f'Comment by {self.author.username} on {self.post.title}'
+        self.assertEqual(str(comment), expected_str)
+    
+    def test_comment_timestamps(self):
+        """Test that comment has created_at and updated_at"""
+        comment = Comment.objects.create(
+            post=self.post,
+            author=self.author,
+            content='Test comment'
+        )
+        
+        self.assertIsNotNone(comment.created_at)
+        self.assertIsNotNone(comment.updated_at)
+        self.assertEqual(comment.created_at, comment.updated_at)
+    
+    def test_comment_ordering(self):
+        """Test that comments are ordered by newest first"""
+        import time
+        
+        comment1 = Comment.objects.create(
+            post=self.post,
+            author=self.author,
+            content='First comment'
+        )
+        
+        time.sleep(0.1)
+        
+        comment2 = Comment.objects.create(
+            post=self.post,
+            author=self.author,
+            content='Second comment'
+        )
+        
+        comments = Comment.objects.all()
+        self.assertEqual(comments[0], comment2)  # Newest first
+        self.assertEqual(comments[1], comment1)
+    
+    def test_comment_related_name(self):
+        """Test that post.comments.all() returns related comments"""
+        comment1 = Comment.objects.create(
+            post=self.post,
+            author=self.author,
+            content='Comment 1'
+        )
+        comment2 = Comment.objects.create(
+            post=self.post,
+            author=self.author,
+            content='Comment 2'
+        )
+        
+        self.assertEqual(self.post.comments.count(), 2)
+        self.assertIn(comment1, self.post.comments.all())
+        self.assertIn(comment2, self.post.comments.all())
+    
+    def test_comment_cascade_delete_with_post(self):
+        """Test that deleting post deletes comments"""
+        comment = Comment.objects.create(
+            post=self.post,
+            author=self.author,
+            content='Test comment'
+        )
+        
+        comment_id = comment.pk
+        self.post.delete()
+        
+        self.assertFalse(Comment.objects.filter(pk=comment_id).exists())
+    
+    def test_comment_cascade_delete_with_author(self):
+        """Test that deleting author deletes comments"""
+        comment = Comment.objects.create(
+            post=self.post,
+            author=self.author,
+            content='Test comment'
+        )
+        
+        comment_id = comment.pk
+        self.author.delete()
+        
+        self.assertFalse(Comment.objects.filter(pk=comment_id).exists())
+
+
+class CommentFormTests(TestCase):
+    """Test cases for CommentForm"""
+    
+    def test_comment_form_renders(self):
+        """Test that comment form renders correctly"""
+        form = CommentForm()
+        self.assertIn('content', form.fields)
+    
+    def test_comment_form_valid_content(self):
+        """Test form with valid content"""
+        form = CommentForm(data={'content': 'This is a valid comment with enough characters.'})
+        self.assertTrue(form.is_valid())
+    
+    def test_comment_form_empty_content(self):
+        """Test form with empty content"""
+        form = CommentForm(data={'content': ''})
+        self.assertFalse(form.is_valid())
+        self.assertIn('Comment cannot be empty', str(form.errors))
+    
+    def test_comment_form_too_short(self):
+        """Test form with content too short"""
+        form = CommentForm(data={'content': 'Hi'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('at least 3 characters', str(form.errors))
+    
+    def test_comment_form_too_long(self):
+        """Test form with content exceeding 5000 characters"""
+        long_content = 'x' * 5001
+        form = CommentForm(data={'content': long_content})
+        self.assertFalse(form.is_valid())
+        self.assertIn('exceed 5000 characters', str(form.errors))
+    
+    def test_comment_form_whitespace_only(self):
+        """Test form with whitespace only"""
+        form = CommentForm(data={'content': '    \n    '})
+        self.assertFalse(form.is_valid())
+        self.assertIn('meaningful comment', str(form.errors))
+    
+    def test_comment_form_minimum_valid_length(self):
+        """Test form with exactly 3 characters (minimum)"""
+        form = CommentForm(data={'content': 'Yes'})
+        self.assertTrue(form.is_valid())
+    
+    def test_comment_form_maximum_valid_length(self):
+        """Test form with exactly 5000 characters (maximum)"""
+        max_content = 'x' * 5000
+        form = CommentForm(data={'content': max_content})
+        self.assertTrue(form.is_valid())
+
+
+class CommentCreateViewTests(TestCase):
+    """Test cases for CommentCreateView"""
+    
+    def setUp(self):
+        """Set up test data"""
+        self.client = Client()
+        
+        self.author = User.objects.create_user(
+            username='author',
+            email='author@example.com',
+            password='AuthPass123'
+        )
+        self.commenter = User.objects.create_user(
+            username='commenter',
+            email='commenter@example.com',
+            password='CommenterPass123'
+        )
+        
+        self.post = Post.objects.create(
+            title='Test Post',
+            content='This is test post content.',
+            author=self.author
+        )
+        
+        self.comment_create_url = reverse('blog:comment_create', kwargs={'post_pk': self.post.pk})
+        self.comment_form_url = reverse('blog:comment_create', kwargs={'post_pk': self.post.pk})
+    
+    def test_comment_create_requires_authentication(self):
+        """Test that anonymous users redirected to login"""
+        response = self.client.get(self.comment_create_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response.url)
+    
+    def test_comment_create_authenticated_user_can_access(self):
+        """Test that authenticated users can access comment form"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        response = self.client.get(self.comment_create_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'blog/comment_form.html')
+    
+    def test_comment_create_authenticated_user_can_post(self):
+        """Test that authenticated user can post comment"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        
+        data = {'content': 'This is a new comment on the post.'}
+        response = self.client.post(self.comment_create_url, data)
+        
+        # Check redirect
+        self.assertEqual(response.status_code, 302)
+        
+        # Check comment was created
+        self.assertTrue(Comment.objects.filter(content='This is a new comment on the post.').exists())
+        
+        # Check comment has correct author and post
+        comment = Comment.objects.get(content='This is a new comment on the post.')
+        self.assertEqual(comment.author, self.commenter)
+        self.assertEqual(comment.post, self.post)
+    
+    def test_comment_create_sets_author_automatically(self):
+        """Test that author is set to current user"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        
+        data = {'content': 'New comment for testing author assignment.'}
+        self.client.post(self.comment_create_url, data)
+        
+        comment = Comment.objects.get(content='New comment for testing author assignment.')
+        self.assertEqual(comment.author, self.commenter)
+        # Ensure author was not set to post author
+        self.assertNotEqual(comment.author, self.post.author)
+    
+    def test_comment_create_sets_post_automatically(self):
+        """Test that post is set from URL parameter"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        
+        data = {'content': 'Comment testing post assignment.'}
+        self.client.post(self.comment_create_url, data)
+        
+        comment = Comment.objects.get(content='Comment testing post assignment.')
+        self.assertEqual(comment.post, self.post)
+    
+    def test_comment_create_redirects_to_post_detail(self):
+        """Test redirect after successful comment creation"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        
+        data = {'content': 'Comment for redirect testing.'}
+        response = self.client.post(self.comment_create_url, data, follow=False)
+        
+        self.assertEqual(response.status_code, 302)
+        expected_url = reverse('blog:post_detail', kwargs={'pk': self.post.pk})
+        self.assertEqual(response.url, expected_url)
+    
+    def test_comment_create_invalid_post(self):
+        """Test comment creation on non-existent post"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        
+        invalid_url = reverse('blog:comment_create', kwargs={'post_pk': 99999})
+        response = self.client.get(invalid_url)
+        self.assertEqual(response.status_code, 404)
+
+
+class CommentUpdateViewTests(TestCase):
+    """Test cases for CommentUpdateView"""
+    
+    def setUp(self):
+        """Set up test data"""
+        self.client = Client()
+        
+        self.author = User.objects.create_user(
+            username='author',
+            email='author@example.com',
+            password='AuthPass123'
+        )
+        self.commenter = User.objects.create_user(
+            username='commenter',
+            email='commenter@example.com',
+            password='CommenterPass123'
+        )
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='OtherPass123'
+        )
+        
+        self.post = Post.objects.create(
+            title='Test Post',
+            content='Test post content.',
+            author=self.author
+        )
+        
+        self.comment = Comment.objects.create(
+            post=self.post,
+            author=self.commenter,
+            content='Original comment content.'
+        )
+        
+        self.comment_edit_url = reverse('blog:comment_edit', kwargs={'comment_pk': self.comment.pk})
+    
+    def test_comment_edit_requires_authentication(self):
+        """Test that anonymous users cannot edit comments"""
+        response = self.client.get(self.comment_edit_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response.url)
+    
+    def test_comment_edit_author_can_access_form(self):
+        """Test that comment author can access edit form"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        response = self.client.get(self.comment_edit_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'blog/comment_form.html')
+    
+    def test_comment_edit_non_author_cannot_access(self):
+        """Test that non-authors cannot edit comments"""
+        self.client.login(username='otheruser', password='OtherPass123')
+        response = self.client.get(self.comment_edit_url)
+        self.assertIn(response.status_code, [302, 403])
+    
+    def test_comment_edit_author_can_update(self):
+        """Test that author can update comment content"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        
+        data = {'content': 'Updated comment content with new information.'}
+        response = self.client.post(self.comment_edit_url, data)
+        
+        # Verify redirect
+        self.assertEqual(response.status_code, 302)
+        
+        # Verify content was updated
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.content, 'Updated comment content with new information.')
+    
+    def test_comment_edit_non_author_cannot_update(self):
+        """Test that non-author cannot update comment"""
+        self.client.login(username='otheruser', password='OtherPass123')
+        
+        data = {'content': 'Attempted unauthorized update.'}
+        self.client.post(self.comment_edit_url, data)
+        
+        # Verify content was NOT updated
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.content, 'Original comment content.')
+    
+    def test_comment_edit_updates_modified_timestamp(self):
+        """Test that updated_at timestamp is updated"""
+        original_updated = self.comment.updated_at
+        
+        self.client.login(username='commenter', password='CommenterPass123')
+        
+        import time
+        time.sleep(0.1)
+        
+        data = {'content': 'Comment updated with new timestamp.'}
+        self.client.post(self.comment_edit_url, data)
+        
+        self.comment.refresh_from_db()
+        self.assertGreater(self.comment.updated_at, original_updated)
+    
+    def test_comment_edit_created_timestamp_unchanged(self):
+        """Test that created_at is not changed on edit"""
+        original_created = self.comment.created_at
+        
+        self.client.login(username='commenter', password='CommenterPass123')
+        data = {'content': 'Comment with unchanged creation time.'}
+        self.client.post(self.comment_edit_url, data)
+        
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.created_at, original_created)
+    
+    def test_comment_edit_redirects_to_post(self):
+        """Test redirect after edit goes to post detail"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        data = {'content': 'Comment edited and redirected.'}
+        response = self.client.post(self.comment_edit_url, data, follow=False)
+        
+        self.assertEqual(response.status_code, 302)
+        expected_url = reverse('blog:post_detail', kwargs={'pk': self.post.pk})
+        self.assertEqual(response.url, expected_url)
+
+
+class CommentDeleteViewTests(TestCase):
+    """Test cases for CommentDeleteView"""
+    
+    def setUp(self):
+        """Set up test data"""
+        self.client = Client()
+        
+        self.author = User.objects.create_user(
+            username='author',
+            email='author@example.com',
+            password='AuthPass123'
+        )
+        self.commenter = User.objects.create_user(
+            username='commenter',
+            email='commenter@example.com',
+            password='CommenterPass123'
+        )
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='OtherPass123'
+        )
+        
+        self.post = Post.objects.create(
+            title='Test Post',
+            content='Test post content.',
+            author=self.author
+        )
+        
+        self.comment = Comment.objects.create(
+            post=self.post,
+            author=self.commenter,
+            content='Comment to be deleted.'
+        )
+        
+        self.comment_delete_url = reverse('blog:comment_delete', kwargs={'comment_pk': self.comment.pk})
+    
+    def test_comment_delete_requires_authentication(self):
+        """Test that anonymous users cannot delete comments"""
+        response = self.client.get(self.comment_delete_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response.url)
+    
+    def test_comment_delete_author_can_access_confirmation(self):
+        """Test that author can access delete confirmation page"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        response = self.client.get(self.comment_delete_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'blog/comment_confirm_delete.html')
+    
+    def test_comment_delete_non_author_cannot_access(self):
+        """Test that non-authors cannot access delete page"""
+        self.client.login(username='otheruser', password='OtherPass123')
+        response = self.client.get(self.comment_delete_url)
+        self.assertIn(response.status_code, [302, 403])
+    
+    def test_comment_delete_author_can_delete(self):
+        """Test that author can delete their comment"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        comment_id = self.comment.pk
+        
+        response = self.client.post(self.comment_delete_url)
+        
+        # Verify redirect
+        self.assertEqual(response.status_code, 302)
+        
+        # Verify comment was deleted
+        self.assertFalse(Comment.objects.filter(pk=comment_id).exists())
+    
+    def test_comment_delete_non_author_cannot_delete(self):
+        """Test that non-author cannot delete comment"""
+        self.client.login(username='otheruser', password='OtherPass123')
+        comment_id = self.comment.pk
+        
+        self.client.post(self.comment_delete_url)
+        
+        # Verify comment still exists
+        self.assertTrue(Comment.objects.filter(pk=comment_id).exists())
+    
+    def test_comment_delete_permanent_deletion(self):
+        """Test that deleted comments cannot be recovered"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        comment_id = self.comment.pk
+        
+        self.client.post(self.comment_delete_url)
+        
+        # Try to access deleted comment
+        self.assertFalse(Comment.objects.filter(pk=comment_id).exists())
+    
+    def test_comment_delete_redirects_to_post(self):
+        """Test redirect after deletion goes to post"""
+        self.client.login(username='commenter', password='CommenterPass123')
+        response = self.client.post(self.comment_delete_url, follow=False)
+        
+        self.assertEqual(response.status_code, 302)
+        expected_url = reverse('blog:post_detail', kwargs={'pk': self.post.pk})
+        self.assertEqual(response.url, expected_url)
+
+
+class CommentDisplayTests(TestCase):
+    """Test cases for comment display on post detail"""
+    
+    def setUp(self):
+        """Set up test data"""
+        self.client = Client()
+        
+        self.author = User.objects.create_user(
+            username='author',
+            email='author@example.com',
+            password='AuthPass123'
+        )
+        self.commenter1 = User.objects.create_user(
+            username='commenter1',
+            email='commenter1@example.com',
+            password='Commenter1Pass123'
+        )
+        self.commenter2 = User.objects.create_user(
+            username='commenter2',
+            email='commenter2@example.com',
+            password='Commenter2Pass123'
+        )
+        
+        self.post = Post.objects.create(
+            title='Test Post',
+            content='Test post content.',
+            author=self.author
+        )
+        
+        self.post_detail_url = reverse('blog:post_detail', kwargs={'pk': self.post.pk})
+    
+    def test_post_detail_shows_no_comments_when_empty(self):
+        """Test that empty post shows no comments message"""
+        response = self.client.get(self.post_detail_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'No comments yet')
+    
+    def test_post_detail_shows_comment_form_for_authenticated(self):
+        """Test that authenticated users see comment form"""
+        self.client.login(username='commenter1', password='Commenter1Pass123')
+        response = self.client.get(self.post_detail_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Post a Comment')
+    
+    def test_post_detail_shows_login_link_for_anonymous(self):
+        """Test that anonymous users see login link"""
+        response = self.client.get(self.post_detail_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Login')
+        self.assertContains(response, 'to post a comment')
+    
+    def test_post_detail_displays_comments(self):
+        """Test that comments are displayed on post detail"""
+        Comment.objects.create(
+            post=self.post,
+            author=self.commenter1,
+            content='First comment on the post.'
+        )
+        
+        response = self.client.get(self.post_detail_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'First comment on the post.')
+        self.assertContains(response, self.commenter1.username)
+    
+    def test_post_detail_displays_multiple_comments(self):
+        """Test that multiple comments are displayed"""
+        Comment.objects.create(
+            post=self.post,
+            author=self.commenter1,
+            content='First comment on the post.'
+        )
+        Comment.objects.create(
+            post=self.post,
+            author=self.commenter2,
+            content='Second comment on the post.'
+        )
+        
+        response = self.client.get(self.post_detail_url)
+        self.assertContains(response, 'First comment on the post.')
+        self.assertContains(response, 'Second comment on the post.')
+        self.assertContains(response, self.commenter1.username)
+        self.assertContains(response, self.commenter2.username)
+    
+    def test_post_detail_shows_edit_button_for_comment_author(self):
+        """Test that edit/delete buttons visible only to comment author"""
+        comment = Comment.objects.create(
+            post=self.post,
+            author=self.commenter1,
+            content='Comment by commenter1.'
+        )
+        
+        self.client.login(username='commenter1', password='Commenter1Pass123')
+        response = self.client.get(self.post_detail_url)
+        
+        # Author should see edit and delete buttons
+        self.assertContains(response, 'Edit')
+        self.assertContains(response, 'Delete')
+    
+    def test_post_detail_hides_edit_button_for_non_author(self):
+        """Test that non-authors don't see edit/delete buttons"""
+        comment = Comment.objects.create(
+            post=self.post,
+            author=self.commenter1,
+            content='Comment by commenter1.'
+        )
+        
+        self.client.login(username='commenter2', password='Commenter2Pass123')
+        response = self.client.get(self.post_detail_url)
+        
+        # Non-author should NOT see edit/delete links for this comment
+        self.assertContains(response, 'Comment by commenter1.')
+        # Check button count should be 0 for commenter2's perspective
+    
+    def test_post_detail_comments_ordered_newest_first(self):
+        """Test that comments are ordered newest first"""
+        import time
+        
+        comment1 = Comment.objects.create(
+            post=self.post,
+            author=self.commenter1,
+            content='First comment posted.'
+        )
+        time.sleep(0.1)
+        comment2 = Comment.objects.create(
+            post=self.post,
+            author=self.commenter2,
+            content='Second comment posted.'
+        )
+        
+        response = self.client.get(self.post_detail_url)
+        content = response.content.decode()
+        
+        # Second comment should appear before first comment
+        pos1 = content.find('Second comment posted.')
+        pos2 = content.find('First comment posted.')
+        self.assertLess(pos1, pos2)

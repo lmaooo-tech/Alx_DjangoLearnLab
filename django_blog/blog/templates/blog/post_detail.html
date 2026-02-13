@@ -57,8 +57,138 @@
         </footer>
     </article>
 
+    <!-- Comments Section -->
+    <section class="comments-section">
+        <div class="comments-header">
+            <h2>Comments {{ comments|length|default:"(0)" }}</h2>
+        </div>
+
+        <!-- Comment Form for Authenticated Users -->
+        {% if user.is_authenticated %}
+            <div class="comment-form-container">
+                <h3>Post a Comment</h3>
+                <form method="post" action="{% url 'comment_create' post.pk %}" class="comment-form" novalidate>
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <div class="label-wrapper">
+                            <label for="id_content">{{ comment_form.content.label }}</label>
+                            <span class="required">*</span>
+                        </div>
+                        {{ comment_form.content }}
+                        <div class="field-info">
+                            <span class="char-count">
+                                <span id="comment_count">0</span>/5000 characters (min: 3)
+                            </span>
+                            {% if comment_form.content.help_text %}
+                                <small class="help-text">{{ comment_form.content.help_text|safe }}</small>
+                            {% endif %}
+                        </div>
+                        {% if comment_form.content.errors %}
+                            <div class="form-errors">
+                                {% for error in comment_form.content.errors %}
+                                    <p class="error-icon">❌ {{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% if comment_form.non_field_errors %}
+                        <div class="form-errors non-field-errors">
+                            {% for error in comment_form.non_field_errors %}
+                                <p class="error-icon">❌ {{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="submit-comment-btn">
+                            ✓ Post Comment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        {% else %}
+            <div class="comment-login-prompt">
+                <p>
+                    <a href="{% url 'blog:login' %}?next={% url 'post_detail' post.pk %}">
+                        Login
+                    </a> 
+                    to post a comment.
+                </p>
+            </div>
+        {% endif %}
+
+        <!-- Comments List -->
+        <div class="comments-list">
+            {% if comments %}
+                {% for comment in comments %}
+                    <div class="comment">
+                        <div class="comment-header">
+                            <div class="comment-author-info">
+                                {% if comment.author.profile.profile_picture %}
+                                    <img src="{{ comment.author.profile.profile_picture.url }}" alt="{{ comment.author.username }}" class="comment-avatar">
+                                {% else %}
+                                    <div class="comment-avatar-placeholder">
+                                        {{ comment.author.username|upper|slice:":1" }}
+                                    </div>
+                                {% endif %}
+                                <div class="author-details">
+                                    <span class="comment-author">
+                                        <strong>{{ comment.author.get_full_name|default:comment.author.username }}</strong>
+                                    </span>
+                                    <span class="comment-meta">
+                                        @{{ comment.author.username }}
+                                    </span>
+                                </div>
+                            </div>
+                            <time datetime="{{ comment.created_at|date:'Y-m-dTH:i' }}" class="comment-date">
+                                {{ comment.created_at|date:"M d, Y \a\t H:i" }}
+                                {% if comment.updated_at != comment.created_at %}
+                                    <span class="edited">(edited {{ comment.updated_at|date:"M d \a\t H:i" }})</span>
+                                {% endif %}
+                            </time>
+                        </div>
+
+                        <div class="comment-content">
+                            {{ comment.content|linebreaks }}
+                        </div>
+
+                        {% if user.is_authenticated and user == comment.author %}
+                            <div class="comment-actions">
+                                <a href="{% url 'comment_edit' comment.pk %}" class="btn-small btn-edit">
+                                    ✎ Edit
+                                </a>
+                                <a href="{% url 'comment_delete' comment.pk %}" class="btn-small btn-delete">
+                                    ✕ Delete
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-comments">
+                    <p>No comments yet. Be the first to comment!</p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
     <div class="post-navigation">
         <a href="{% url 'post_list' %}" class="btn btn-secondary">← Back to Posts</a>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Character counter for comments
+    const commentTextarea = document.getElementById('id_content');
+    const commentCounter = document.getElementById('comment_count');
+    
+    if (commentTextarea && commentCounter) {
+        commentTextarea.addEventListener('input', function() {
+            commentCounter.textContent = this.value.length;
+        });
+    }
+});
+</script>
 {% endblock %}

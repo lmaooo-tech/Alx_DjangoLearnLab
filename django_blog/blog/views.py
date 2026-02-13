@@ -7,8 +7,8 @@ from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.http import Http404
-from .forms import CustomUserCreationForm, UserProfileForm, PostForm, PostSearchForm, PostFilterForm
-from .models import Post, UserProfile
+from .forms import CustomUserCreationForm, UserProfileForm, PostForm, PostSearchForm, PostFilterForm, CommentForm
+from .models import Post, UserProfile, Comment
 from django.db.models import Q
 
 
@@ -141,7 +141,15 @@ class PostListView(ListView):
 
 
 class PostDetailView(DetailView):
-    """Display a single blog post"""
+    """Display a single blog post with comments
+    
+    Features:
+    - Shows post content and metadata
+    - Displays all comments in reverse chronological order
+    - Shows comment form for authenticated users
+    - Indicates edit/delete buttons for post author
+    - Displays comment author and timestamp
+    """
     model = Post
     template_name = 'blog/post_detail.html'
     context_object_name = 'post'
@@ -152,6 +160,14 @@ class PostDetailView(DetailView):
         post = self.get_object()
         context['title'] = post.title
         context['can_edit'] = self.request.user == post.author
+        
+        # Add comments to context
+        context['comments'] = post.comments.all()
+        
+        # Add comment form for authenticated users
+        if self.request.user.is_authenticated:
+            context['comment_form'] = CommentForm()
+        
         return context
 
 
@@ -337,4 +353,181 @@ class UserPostsView(ListView):
         author = get_object_or_404(User, pk=self.kwargs['pk'])
         context['author'] = author
         context['title'] = f'Posts by {author.get_full_name or author.username}'
+        return context
+
+
+class CommentCreateView(LoginRequiredMixin, CreateView):
+    """Allow authenticated users to post comments on blog posts
+    
+    Permission Requirements:
+    - User must be authenticated (LoginRequiredMixin)
+    - Anonymous users redirected to login page
+    
+    Features:
+    - Author auto-set to current user
+    - Post ID taken from URL kwargs
+    - Success message displayed
+    - Redirects to post detail on success
+    """
+    model = Comment
+    form_class = CommentForm
+    login_url = 'blog:login'
+    redirect_field_name = 'next'
+    
+    def form_valid(self, form):
+        """Set the author and post before saving"""
+        post = get_object_or_404(Post, pk=self.kwargs['post_pk'])
+        form.instance.author = self.request.user
+        form.instance.post = post
+        response = super().form_valid(form)
+        messages.success(self.request, 'Comment posted successfully!')
+        return response
+    
+    def get_success_url(self):
+        """Redirect to the post detail page"""
+        return reverse_lazy('blog:post_detail', kwargs={'pk': self.kwargs['post_pk']})
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        post = get_object_or_404(Post, pk=self.kwargs['post_pk'])
+        context['post'] = post
+        context['action'] = 'Post'
+        return context
+
+
+class CommentUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    """Allow comment authors to edit their comments
+    
+    Permission Requirements:
+    - User must be authenticated (LoginRequiredMixin)
+    - User must be the comment author (UserPassesTestMixin)
+    - Non-authors receive 403 Forbidden
+    - Anonymous users redirected to login
+    
+    Features:
+    - Pre-fills form with comment content
+    - Validates user is comment author
+    - Success message displayed
+    - Redirects to post detail on success
+    """
+    model = Comment
+    form_class = CommentForm
+    pk_url_kwarg = 'comment_pk'
+    login_url = 'blog:login'
+    
+    def test_func(self):
+        """Check if user is the comment author - required by UserPassesTestMixin"""
+        try:
+            comment = self.get_object()
+            is_author = self.request.user == comment.author
+            if not is_author:
+                messages.warning(
+                    self.request,
+                    'You can only edit your own comments.'
+                )
+            return is_author
+        except Comment.DoesNotExist:
+            return False
+    
+    def handle_no_permission(self):
+        """Redirect with error message if user is not the author"""
+        try:
+            comment = self.get_object()
+            messages.error(
+                self.request,
+                'You do not have permission to edit this comment.'
+            )
+            return redirect('blog:post_detail', pk=comment.post.pk)
+        except Comment.DoesNotExist:
+            messages.error(self.request, 'Comment not found.')
+            return redirect('blog:post_list')
+    
+    def form_valid(self, form):
+        """Process comment update with success message"""
+        response = super().form_valid(form)
+        messages.success(self.request, 'Comment updated successfully!')
+        return response
+    
+    def get_success_url(self):
+        """Redirect to the post detail page"""
+        comment = self.get_object()
+        return reverse_lazy('blog:post_detail', kwargs={'pk': comment.post.pk})
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        comment = self.get_object()
+        context['post'] = comment.post
+        context['action'] = 'Edit'
+        return context
+
+
+class CommentDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    """Allow comment authors to delete their comments
+    
+    Permission Requirements:
+    - User must be authenticated (LoginRequiredMixin)
+    - User must be the comment author (UserPassesTestMixin)
+    - Non-authors receive 403 Forbidden
+    - Anonymous users redirected to login
+    
+    Features:
+    - Displays confirmation page
+    - Two-step deletion (confirmation + POST)
+    - POST-only deletion (prevents accidental deletion via GET)
+    - Success message with comment preview
+    - Redirects to post detail after deletion
+    - Permanent: Cannot be undone
+    """
+    model = Comment
+    pk_url_kwarg = 'comment_pk'
+    login_url = 'blog:login'
+    
+    def test_func(self):
+        """Check if user is the comment author - required by UserPassesTestMixin"""
+        try:
+            comment = self.get_object()
+            is_author = self.request.user == comment.author
+            if not is_author:
+                messages.warning(
+                    self.request,
+                    'You can only delete your own comments.'
+                )
+            return is_author
+        except Comment.DoesNotExist:
+            return False
+    
+    def handle_no_permission(self):
+        """Redirect with error message if user is not the author"""
+        try:
+            comment = self.get_object()
+            messages.error(
+                self.request,
+                'You do not have permission to delete this comment.'
+            )
+            return redirect('blog:post_detail', pk=comment.post.pk)
+        except Comment.DoesNotExist:
+            messages.error(self.request, 'Comment not found.')
+            return redirect('blog:post_list')
+    
+    def delete(self, request, *args, **kwargs):
+        """Process deletion with success message"""
+        comment = self.get_object()
+        post = comment.post
+        response = super().delete(request, *args, **kwargs)
+        messages.success(
+            request,
+            'Comment deleted successfully!'
+        )
+        return response
+    
+    def get_success_url(self):
+        """Redirect to the post detail page"""
+        comment = self.get_object()
+        return reverse_lazy('blog:post_detail', kwargs={'pk': comment.post.pk})
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        comment = self.get_object()
+        context['post'] = comment.post
+        context['title'] = 'Delete Comment'
         return context

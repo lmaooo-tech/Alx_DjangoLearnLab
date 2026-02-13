@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import UserProfile, Post
+from .models import UserProfile, Post, Comment
 
 
 @admin.register(UserProfile)
@@ -34,6 +34,23 @@ class PostAdmin(admin.ModelAdmin):
         }),
         ('Metadata', {
             'fields': ('published_date',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('author', 'post', 'created_at', 'updated_at')
+    list_filter = ('created_at', 'updated_at', 'post')
+    search_fields = ('content', 'author__username', 'post__title')
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        ('Comment Content', {
+            'fields': ('post', 'author', 'content')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
