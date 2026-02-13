@@ -1,0 +1,143 @@
+{% extends 'blog/base.html' %}
+{% load static %}
+
+{% block title %}All Blog Posts - Django Blog{% endblock %}
+
+{% block content %}
+<div class="post-list-container">
+    <div class="list-header">
+        <h1>Blog Posts</h1>
+        {% if user.is_authenticated %}
+            <a href="{% url 'post_create' %}" class="btn btn-primary">
+                ✎ Create New Post
+            </a>
+        {% else %}
+            <p class="auth-prompt"><a href="{% url 'login' %}">Login</a> to create a post</p>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Search and Filter Section -->
+    <div class="search-filter-section">
+        <div class="search-container">
+            <form method="get" class="search-form" id="search-form">
+                <div class="search-input-group">
+                    <input type="text" 
+                           name="q" 
+                           value="{{ search_query }}" 
+                           placeholder="Search by title, content, or author..." 
+                           class="form-control" 
+                           maxlength="200">
+                    <button type="submit" class="btn btn-search">
+                        <span>🔍 Search</span>
+                    </button>
+                    {% if search_query %}
+                        <a href="{% url 'post_list' %}" class="btn btn-clear">Clear</a>
+                    {% endif %}
+                </div>
+                {% if search_form.q.errors %}
+                    <div class="form-error">{{ search_form.q.errors.0 }}</div>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="filter-container">
+            <form method="get" class="filter-form" id="filter-form">
+                {% if search_query %}
+                    <input type="hidden" name="q" value="{{ search_query }}">
+                {% endif %}
+                <div class="filter-input-group">
+                    <label for="sort_by" class="filter-label">Sort by:</label>
+                    <select name="sort_by" id="sort_by" class="form-control" onchange="this.form.submit()">
+                        <option value="newest" {% if request.GET.sort_by == 'newest' or not request.GET.sort_by %}selected{% endif %}>Newest First</option>
+                        <option value="oldest" {% if request.GET.sort_by == 'oldest' %}selected{% endif %}>Oldest First</option>
+                        <option value="title_asc" {% if request.GET.sort_by == 'title_asc' %}selected{% endif %}>Title (A-Z)</option>
+                        <option value="title_desc" {% if request.GET.sort_by == 'title_desc' %}selected{% endif %}>Title (Z-A)</option>
+                    </select>
+                </div>
+                {% if filter_form.sort_by.errors %}
+                    <div class="form-error">{{ filter_form.sort_by.errors.0 }}</div>
+                {% endif %}
+            </form>
+        </div>
+
+        {% if search_query %}
+            <div class="search-results-info">
+                <p><strong>Search results for:</strong> "{{ search_query }}" 
+                   <span class="result-count">({{ page_obj.paginator.count }} post{{ page_obj.paginator.count|pluralize }})</span>
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if posts %}
+        <div class="posts-grid">
+            {% for post in posts %}
+                <article class="post-card">
+                    <div class="post-header">
+                        <h2><a href="{% url 'post_detail' post.pk %}">{{ post.title }}</a></h2>
+                        <div class="post-meta">
+                            <span class="author">
+                                <a href="{% url 'user_posts' post.author.id %}">
+                                    By {{ post.author.get_full_name|default:post.author.username }}
+                                </a>
+                            </span>
+                            <span class="date">{{ post.published_date|date:"M d, Y \a\t H:i" }}</span>
+                        </div>
+                    </div>
+                    <div class="post-excerpt">
+                        <p>{{ post.content|truncatewords:30 }}</p>
+                    </div>
+                    <div class="post-footer">
+                        <a href="{% url 'post_detail' post.pk %}" class="read-more">Read More →</a>
+                        {% if user == post.author %}
+                            <div class="post-actions">
+                                <a href="{% url 'post_edit' post.pk %}" class="btn-small btn-edit">Edit</a>
+                                <a href="{% url 'post_delete' post.pk %}" class="btn-small btn-delete">Delete</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+            <div class="pagination">
+                <div class="pagination-links">
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if request.GET.sort_by %}&sort_by={{ request.GET.sort_by }}{% endif %}" class="pagination-link">« First</a>
+                        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if request.GET.sort_by %}&sort_by={{ request.GET.sort_by }}{% endif %}" class="pagination-link">‹ Previous</a>
+                    {% endif %}
+
+                    <span class="pagination-info">
+                        Page <strong>{{ page_obj.number }}</strong> of <strong>{{ page_obj.paginator.num_pages }}</strong>
+                    </span>
+
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if request.GET.sort_by %}&sort_by={{ request.GET.sort_by }}{% endif %}" class="pagination-link">Next ›</a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if request.GET.sort_by %}&sort_by={{ request.GET.sort_by }}{% endif %}" class="pagination-link">Last »</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="no-posts">
+            {% if search_query %}
+                <p>No blog posts found matching "{{ search_query }}". <a href="{% url 'post_list' %}">View all posts</a></p>
+            {% else %}
+                <p>No blog posts yet. {% if user.is_authenticated %}<a href="{% url 'post_create' %}">Create the first one!</a>{% else %}<a href="{% url 'login' %}">Login</a> to create a post.{% endif %}</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

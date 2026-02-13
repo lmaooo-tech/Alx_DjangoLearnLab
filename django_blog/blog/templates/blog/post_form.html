@@ -1,0 +1,137 @@
+{% extends 'blog/base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} Post - Django Blog{% endblock %}
+
+{% block content %}
+<div class="post-form-container">
+    <div class="form-header">
+        <h1>{{ action }} Blog Post</h1>
+        <p class="form-subtitle">Share your thoughts and ideas with the community</p>
+    </div>
+
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="post" class="post-form" novalidate>
+        {% csrf_token %}
+
+        <!-- Title Field -->
+        <div class="form-group">
+            <div class="label-wrapper">
+                <label for="id_title">{{ form.title.label }}</label>
+                <span class="required">*</span>
+            </div>
+            {{ form.title }}
+            <div class="field-info">
+                <span class="char-count">
+                    <span id="title_count">0</span>/200 characters
+                </span>
+                {% if form.title.help_text %}
+                    <small class="help-text">{{ form.title.help_text|safe }}</small>
+                {% endif %}
+            </div>
+            {% if form.title.errors %}
+                <div class="form-errors">
+                    {% for error in form.title.errors %}
+                        <p class="error-icon">❌ {{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Content Field -->
+        <div class="form-group">
+            <div class="label-wrapper">
+                <label for="id_content">{{ form.content.label }}</label>
+                <span class="required">*</span>
+            </div>
+            {{ form.content }}
+            <div class="field-info">
+                <span class="char-count">
+                    <span id="content_count">0</span> characters (minimum: 10)
+                </span>
+                {% if form.content.help_text %}
+                    <small class="help-text">{{ form.content.help_text|safe }}</small>
+                {% endif %}
+            </div>
+            {% if form.content.errors %}
+                <div class="form-errors">
+                    {% for error in form.content.errors %}
+                        <p class="error-icon">❌ {{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Non-field Errors -->
+        {% if form.non_field_errors %}
+            <div class="form-errors non-field-errors">
+                {% for error in form.non_field_errors %}
+                    <p class="error-icon">❌ {{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
+                ✓ {{ action }} Post
+            </button>
+            <a href="{% url 'post_list' %}" class="btn btn-secondary btn-lg">
+                ← Cancel
+            </a>
+        </div>
+
+        <!-- Submission Message -->
+        <p class="form-note">
+            <small>Your {% if action == 'Create' %}new{% else %}updated{% endif %} post will be {% if action == 'Create' %}published immediately{% else %}saved with your changes{% endif %} once submitted.</small>
+        </p>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Character counters
+    const titleInput = document.getElementById('id_title');
+    const contentInput = document.getElementById('id_content');
+    const titleCount = document.getElementById('title_count');
+    const contentCount = document.getElementById('content_count');
+    
+    if (titleInput) {
+        titleInput.addEventListener('input', function() {
+            titleCount.textContent = this.value.length;
+        });
+        // Initialize on page load
+        titleCount.textContent = titleInput.value.length;
+    }
+    
+    if (contentInput) {
+        contentInput.addEventListener('input', function() {
+            contentCount.textContent = this.value.length;
+        });
+        // Initialize on page load
+        contentCount.textContent = contentInput.value.length;
+    }
+    
+    // Form submission
+    const form = document.querySelector('.post-form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Disable submit button to prevent duplicate submission
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Submitting...';
+        });
+    }
+});
+</script>
+{% endblock %}

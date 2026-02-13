@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from .models import UserProfile
+from .models import UserProfile, Post
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -102,3 +102,138 @@ class UserProfileForm(forms.ModelForm):
             profile.user.save()
             profile.save()
         return profile
+
+
+class PostForm(forms.ModelForm):
+    """Form for creating and updating blog posts with comprehensive validation"""
+    
+    class Meta:
+        model = Post
+        fields = ('title', 'content')
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter post title...',
+                'maxlength': '200',
+                'id': 'id_title'
+            }),
+            'content': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Write your post content here...',
+                'rows': 10,
+                'id': 'id_content'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add custom attributes
+        self.fields['title'].label = 'Post Title'
+        self.fields['content'].label = 'Post Content'
+        
+        # Add help texts with character limits
+        self.fields['title'].help_text = 'Maximum 200 characters (required)'
+        self.fields['content'].help_text = 'Tell your story... (minimum 10 characters required)'
+        
+        # Add required field markers
+        self.fields['title'].required = True
+        self.fields['content'].required = True
+    
+    def clean_title(self):
+        """Validate post title"""
+        title = self.cleaned_data.get('title')
+        if not title:
+            raise forms.ValidationError('Post title cannot be empty.')
+        
+        title = title.strip()
+        
+        if len(title) < 3:
+            raise forms.ValidationError('Post title must be at least 3 characters long.')
+        
+        if len(title) > 200:
+            raise forms.ValidationError('Post title cannot exceed 200 characters.')
+        
+        # Check for special characters
+        if any(char in title for char in ['<', '>', '{', '}']):
+            raise forms.ValidationError('Post title contains invalid characters.')
+        
+        return title
+    
+    def clean_content(self):
+        """Validate post content"""
+        content = self.cleaned_data.get('content')
+        if not content:
+            raise forms.ValidationError('Post content cannot be empty.')
+        
+        content = content.strip()
+        
+        if len(content) < 10:
+            raise forms.ValidationError('Post content must be at least 10 characters long.')
+        
+        # Warn if content is very short (but allow it)
+        if len(content) < 50:
+            pass  # Allow but could be enhanced with a warning
+        
+        return content
+    
+    def clean(self):
+        """Overall form validation"""
+        cleaned_data = super().clean()
+        title = cleaned_data.get('title', '').strip()
+        content = cleaned_data.get('content', '').strip()
+        
+        # Ensure title and content are different
+        if title.lower() == content[:len(title)].lower():
+            raise forms.ValidationError('Post content should be more than just the title.')
+        
+        return cleaned_data
+
+
+class PostSearchForm(forms.Form):
+    """Form for searching blog posts"""
+    q = forms.CharField(
+        max_length=200,
+        required=False,
+        label='Search Posts',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Search by title or content...',
+            'id': 'search_query'
+        })
+    )
+    
+    def clean_q(self):
+        """Validate search query"""
+        query = self.cleaned_data.get('q', '').strip()
+        if query and len(query) < 2:
+            raise forms.ValidationError('Search query must be at least 2 characters long.')
+        return query
+
+
+class PostFilterForm(forms.Form):
+    """Form for filtering blog posts"""
+    SORT_CHOICES = [
+        ('newest', 'Newest First'),
+        ('oldest', 'Oldest First'),
+        ('title_asc', 'Title A-Z'),
+        ('title_desc', 'Title Z-A'),
+    ]
+    
+    sort_by = forms.ChoiceField(
+        choices=SORT_CHOICES,
+        required=False,
+        initial='newest',
+        label='Sort By',
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'sort_by'
+        })
+    )
+    
+    def clean_sort_by(self):
+        """Validate sort choice"""
+        sort_by = self.cleaned_data.get('sort_by')
+        valid_choices = [choice[0] for choice in self.SORT_CHOICES]
+        if sort_by and sort_by not in valid_choices:
+            raise forms.ValidationError('Invalid sort option.')
+        return sort_by

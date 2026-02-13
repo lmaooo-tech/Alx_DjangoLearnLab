@@ -1,0 +1,64 @@
+{% extends 'blog/base.html' %}
+{% load static %}
+
+{% block title %}{{ post.title }} - Django Blog{% endblock %}
+
+{% block content %}
+<div class="post-detail-container">
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <article class="post-detail">
+        <header class="post-header">
+            <h1>{{ post.title }}</h1>
+            <div class="post-meta">
+                <div class="author-info">
+                    <span class="author-name">
+                        By <a href="{% url 'user_posts' post.author.id %}">
+                            {{ post.author.get_full_name|default:post.author.username }}
+                        </a>
+                    </span>
+                    {% if post.author.profile.profile_picture %}
+                        <img src="{{ post.author.profile.profile_picture.url }}" alt="{{ post.author.username }}" class="author-avatar">
+                    {% else %}
+                        <div class="author-avatar-placeholder">
+                            {{ post.author.username|upper|slice:":1" }}
+                        </div>
+                    {% endif %}
+                </div>
+                <time datetime="{{ post.published_date|date:'Y-m-dTH:i' }}">
+                    Published on {{ post.published_date|date:"F d, Y \a\t H:i" }}
+                </time>
+            </div>
+        </header>
+
+        <div class="post-content">
+            {{ post.content|linebreaks }}
+        </div>
+
+        <footer class="post-footer">
+            {% if can_edit %}
+                <div class="post-actions">
+                    <a href="{% url 'post_edit' post.pk %}" class="btn btn-primary">
+                        ✎ Edit Post
+                    </a>
+                    <a href="{% url 'post_delete' post.pk %}" class="btn btn-danger">
+                        ✕ Delete Post
+                    </a>
+                </div>
+            {% endif %}
+        </footer>
+    </article>
+
+    <div class="post-navigation">
+        <a href="{% url 'post_list' %}" class="btn btn-secondary">← Back to Posts</a>
+    </div>
+</div>
+{% endblock %}
