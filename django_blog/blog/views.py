@@ -376,7 +376,7 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
     
     def form_valid(self, form):
         """Set the author and post before saving"""
-        post = get_object_or_404(Post, pk=self.kwargs['post_pk'])
+        post = get_object_or_404(Post, pk=self.kwargs['pk'])
         form.instance.author = self.request.user
         form.instance.post = post
         response = super().form_valid(form)
@@ -385,11 +385,11 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
     
     def get_success_url(self):
         """Redirect to the post detail page"""
-        return reverse_lazy('blog:post_detail', kwargs={'pk': self.kwargs['post_pk']})
+        return reverse_lazy('blog:post_detail', kwargs={'pk': self.kwargs['pk']})
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        post = get_object_or_404(Post, pk=self.kwargs['post_pk'])
+        post = get_object_or_404(Post, pk=self.kwargs['pk'])
         context['post'] = post
         context['action'] = 'Post'
         return context
@@ -412,7 +412,7 @@ class CommentUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     """
     model = Comment
     form_class = CommentForm
-    pk_url_kwarg = 'comment_pk'
+    pk_url_kwarg = 'pk'
     login_url = 'blog:login'
     
     def test_func(self):
@@ -479,7 +479,7 @@ class CommentDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     - Permanent: Cannot be undone
     """
     model = Comment
-    pk_url_kwarg = 'comment_pk'
+    pk_url_kwarg = 'pk'
     login_url = 'blog:login'
     
     def test_func(self):

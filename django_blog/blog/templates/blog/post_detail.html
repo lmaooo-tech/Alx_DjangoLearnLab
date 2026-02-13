@@ -67,7 +67,7 @@
         {% if user.is_authenticated %}
             <div class="comment-form-container">
                 <h3>Post a Comment</h3>
-                <form method="post" action="{% url 'comment_create' post.pk %}" class="comment-form" novalidate>
+                <form method="post" action="{% url 'blog:comment_create' post.pk %}" class="comment-form" novalidate>
                     {% csrf_token %}
                     <div class="form-group">
                         <div class="label-wrapper">
@@ -155,10 +155,10 @@
 
                         {% if user.is_authenticated and user == comment.author %}
                             <div class="comment-actions">
-                                <a href="{% url 'comment_edit' comment.pk %}" class="btn-small btn-edit">
+                                <a href="{% url 'blog:comment_edit' comment.pk %}" class="btn-small btn-edit">
                                     ✎ Edit
                                 </a>
-                                <a href="{% url 'comment_delete' comment.pk %}" class="btn-small btn-delete">
+                                <a href="{% url 'blog:comment_delete' comment.pk %}" class="btn-small btn-delete">
                                     ✕ Delete
                                 </a>
                             </div>
