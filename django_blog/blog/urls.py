@@ -20,16 +20,16 @@ urlpatterns = [
     path('posts/', views.PostListView.as_view(), name='posts'),
     
     # Create new post
-    path('posts/new/', views.PostCreateView.as_view(), name='post_create'),
+    path('post/new/', views.PostCreateView.as_view(), name='post_create'),
     
     # View single post details
     path('posts/<int:pk>/', views.PostDetailView.as_view(), name='post_detail'),
     
-    # Edit existing post
-    path('posts/<int:pk>/edit/', views.PostUpdateView.as_view(), name='post_edit'),
+    # Update existing post
+    path('post/<int:pk>/update/', views.PostUpdateView.as_view(), name='post_edit'),
     
     # Delete post
-    path('posts/<int:pk>/delete/', views.PostDeleteView.as_view(), name='post_delete'),
+    path('post/<int:pk>/delete/', views.PostDeleteView.as_view(), name='post_delete'),
     
     # ========================================================================
     # Author/User URLs

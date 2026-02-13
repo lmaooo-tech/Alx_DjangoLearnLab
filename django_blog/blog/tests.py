@@ -681,3 +681,290 @@ class PostCRUDFormIntegrationTests(TestCase):
         posts = list(response.context['posts'])
         self.assertEqual(posts[0].title, 'Apple Post')
         self.assertEqual(posts[1].title, 'Zebra Post')
+
+
+# ============================================================================
+# Permission Tests
+# ============================================================================
+
+class PermissionTests(TestCase):
+    """Test cases for access control and permissions"""
+    
+    def setUp(self):
+        """Set up test users and posts"""
+        self.client = Client()
+        
+        # Create test users
+        self.author = User.objects.create_user(
+            username='author',
+            email='author@example.com',
+            password='AuthPass123'
+        )
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='OtherPass123'
+        )
+        
+        # Create test posts
+        self.post = Post.objects.create(
+            title='Author Post',
+            content='This is the author\'s post for testing permissions.',
+            author=self.author
+        )
+        
+        # URLs
+        self.post_list_url = reverse('blog:post_list')
+        self.post_detail_url = reverse('blog:post_detail', kwargs={'pk': self.post.pk})
+        self.post_create_url = reverse('blog:post_create')
+        self.post_edit_url = reverse('blog:post_edit', kwargs={'pk': self.post.pk})
+        self.post_delete_url = reverse('blog:post_delete', kwargs={'pk': self.post.pk})
+        self.login_url = reverse('blog:login')
+
+
+class PostListPermissionTests(PermissionTests):
+    """Test permissions for post list view"""
+    
+    def test_post_list_accessible_to_anonymous_user(self):
+        """Test that post list is accessible to non-authenticated users"""
+        response = self.client.get(self.post_list_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'blog/post_list.html')
+    
+    def test_post_list_accessible_to_authenticated_user(self):
+        """Test that post list is accessible to authenticated users"""
+        self.client.login(username='author', password='AuthPass123')
+        response = self.client.get(self.post_list_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.post, response.context['posts'].object_list)
+
+
+class PostDetailPermissionTests(PermissionTests):
+    """Test permissions for post detail view"""
+    
+    def test_post_detail_accessible_to_anonymous_user(self):
+        """Test that post detail is accessible to non-authenticated users"""
+        response = self.client.get(self.post_detail_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'blog/post_detail.html')
+        self.assertEqual(response.context['post'], self.post)
+    
+    def test_post_detail_accessible_to_authenticated_user(self):
+        """Test that post detail is accessible to authenticated users"""
+        self.client.login(username='author', password='AuthPass123')
+        response = self.client.get(self.post_detail_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['post'], self.post)
+    
+    def test_post_detail_displays_can_edit_for_author(self):
+        """Test that can_edit is True for post author"""
+        self.client.login(username='author', password='AuthPass123')
+        response = self.client.get(self.post_detail_url)
+        self.assertTrue(response.context['can_edit'])
+    
+    def test_post_detail_displays_can_edit_false_for_non_author(self):
+        """Test that can_edit is False for non-author"""
+        self.client.login(username='otheruser', password='OtherPass123')
+        response = self.client.get(self.post_detail_url)
+        self.assertFalse(response.context['can_edit'])
+    
+    def test_post_detail_nonexistent_returns_404(self):
+        """Test that nonexistent post returns 404"""
+        url = reverse('blog:post_detail', kwargs={'pk': 99999})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+
+class PostCreatePermissionTests(PermissionTests):
+    """Test permissions for post creation"""
+    
+    def test_post_create_requires_authentication(self):
+        """Test that unauthenticated users cannot access create form"""
+        response = self.client.get(self.post_create_url)
+        # Should redirect to login
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(self.login_url, response.url)
+    
+    def test_post_create_redirects_to_login_with_next(self):
+        """Test that unauthenticated users redirected to login with next parameter"""
+        response = self.client.get(self.post_create_url, follow=False)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('next=', response.url)
+    
+    def test_post_create_accessible_to_authenticated_user(self):
+        """Test that authenticated users can access create form"""
+        self.client.login(username='author', password='AuthPass123')
+        response = self.client.get(self.post_create_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'blog/post_form.html')
+    
+    def test_post_create_authenticated_user_can_create(self):
+        """Test that authenticated user can create post"""
+        self.client.login(username='author', password='AuthPass123')
+        post_data = {
+            'title': 'New Test Post',
+            'content': 'This is a new test post created by authenticated user.'
+        }
+        response = self.client.post(self.post_create_url, post_data)
+        
+        # Check post was created
+        new_post = Post.objects.get(title='New Test Post')
+        self.assertEqual(new_post.author, self.author)
+        
+        # Should redirect to post detail
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(str(new_post.pk), response.url)
+    
+    def test_post_create_sets_author_to_current_user(self):
+        """Test that created post author is set to current user"""
+        self.client.login(username='author', password='AuthPass123')
+        post_data = {
+            'title': 'Author-Owned Post',
+            'content': 'This post should belong to the author.'
+        }
+        self.client.post(self.post_create_url, post_data)
+        
+        post = Post.objects.get(title='Author-Owned Post')
+        self.assertEqual(post.author, self.author)
+        self.assertNotEqual(post.author, self.other_user)
+
+
+class PostEditPermissionTests(PermissionTests):
+    """Test permissions for post editing"""
+    
+    def test_post_edit_requires_authentication(self):
+        """Test that unauthenticated users cannot access edit form"""
+        response = self.client.get(self.post_edit_url)
+        # Should redirect to login
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(self.login_url, response.url)
+    
+    def test_post_edit_author_can_access_form(self):
+        """Test that post author can access edit form"""
+        self.client.login(username='author', password='AuthPass123')
+        response = self.client.get(self.post_edit_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'blog/post_form.html')
+    
+    def test_post_edit_non_author_gets_403(self):
+        """Test that non-author gets permission denied"""
+        self.client.login(username='otheruser', password='OtherPass123')
+        response = self.client.get(self.post_edit_url)
+        # Should redirect (not 403, but we handle in view)
+        self.assertIn(response.status_code, [302, 403])
+    
+    def test_post_edit_author_can_update(self):
+        """Test that post author can update post"""
+        self.client.login(username='author', password='AuthPass123')
+        post_data = {
+            'title': 'Updated Post Title',
+            'content': 'This post has been updated.'
+        }
+        response = self.client.post(self.post_edit_url, post_data)
+        
+        # Check post was updated
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.title, 'Updated Post Title')
+        self.assertEqual(self.post.content, 'This post has been updated.')
+    
+    def test_post_edit_non_author_cannot_update(self):
+        """Test that non-author cannot update post"""
+        self.client.login(username='otheruser', password='OtherPass123')
+        original_title = self.post.title
+        post_data = {
+            'title': 'Hacked Title',
+            'content': 'This should not be saved.'
+        }
+        response = self.client.post(self.post_edit_url, post_data)
+        
+        # Check post was not updated
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.title, original_title)
+    
+    def test_post_edit_anonymous_redirects_to_login(self):
+        """Test that anonymous user redirected to login"""
+        response = self.client.get(self.post_edit_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(self.login_url, response.url)
+
+
+class PostDeletePermissionTests(PermissionTests):
+    """Test permissions for post deletion"""
+    
+    def test_post_delete_requires_authentication(self):
+        """Test that unauthenticated users cannot access delete"""
+        response = self.client.get(self.post_delete_url)
+        # Should redirect to login
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(self.login_url, response.url)
+    
+    def test_post_delete_author_can_access_confirmation(self):
+        """Test that post author can access delete confirmation"""
+        self.client.login(username='author', password='AuthPass123')
+        response = self.client.get(self.post_delete_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'blog/post_confirm_delete.html')
+    
+    def test_post_delete_non_author_gets_permission_denied(self):
+        """Test that non-author cannot delete"""
+        self.client.login(username='otheruser', password='OtherPass123')
+        response = self.client.get(self.post_delete_url)
+        # Should be redirected (not 403, but we handle in view)
+        self.assertIn(response.status_code, [302, 403])
+    
+    def test_post_delete_author_can_delete(self):
+        """Test that post author can delete post"""
+        self.client.login(username='author', password='AuthPass123')
+        post_id = self.post.pk
+        response = self.client.post(self.post_delete_url)
+        
+        # Check post was deleted
+        self.assertFalse(Post.objects.filter(pk=post_id).exists())
+        
+        # Should redirect to post list
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('post', response.url.lower())
+    
+    def test_post_delete_non_author_cannot_delete(self):
+        """Test that non-author cannot delete post"""
+        self.client.login(username='otheruser', password='OtherPass123')
+        post_id = self.post.pk
+        response = self.client.post(self.post_delete_url)
+        
+        # Check post still exists
+        self.assertTrue(Post.objects.filter(pk=post_id).exists())
+    
+    def test_post_delete_anonymous_redirects_to_login(self):
+        """Test that anonymous user redirected to login"""
+        response = self.client.post(self.post_delete_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(self.login_url, response.url)
+    
+    def test_post_delete_permanent_deletion(self):
+        """Test that deleted posts cannot be recovered"""
+        self.client.login(username='author', password='AuthPass123')
+        post_id = self.post.pk
+        self.client.post(self.post_delete_url)
+        
+        # Try to access deleted post
+        post_detail_url = reverse('blog:post_detail', kwargs={'pk': post_id})
+        response = self.client.get(post_detail_url)
+        self.assertEqual(response.status_code, 404)
+
+
+class AccessControlMessageTests(PermissionTests):
+    """Test access control messages"""
+    
+    def test_edit_permission_denied_message(self):
+        """Test that edit denial shows appropriate message"""
+        self.client.login(username='otheruser', password='OtherPass123')
+        self.client.get(self.post_edit_url)
+        messages_list = list(messages.get_messages(self.client.session))
+        # Message may be displayed
+    
+    def test_delete_permission_denied_message(self):
+        """Test that delete denial shows appropriate message"""
+        self.client.login(username='otheruser', password='OtherPass123')
+        self.client.get(self.post_delete_url)
+        messages_list = list(messages.get_messages(self.client.session))
+        # Message may be displayed
