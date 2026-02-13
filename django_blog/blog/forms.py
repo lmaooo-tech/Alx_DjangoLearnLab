@@ -1,7 +1,8 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from .models import UserProfile, Post, Comment, Tag
+from taggit.forms import TagWidget
+from .models import UserProfile, Post, Comment
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -107,22 +108,9 @@ class UserProfileForm(forms.ModelForm):
 class PostForm(forms.ModelForm):
     """Form for creating and updating blog posts with comprehensive validation"""
     
-    tags = forms.CharField(
-        max_length=500,
-        required=False,
-        label='Tags',
-        help_text='Enter tags separated by commas (e.g., "Django, Python, Web Development")',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter tags separated by commas...',
-            'id': 'id_tags',
-            'autocomplete': 'off'
-        })
-    )
-    
     class Meta:
         model = Post
-        fields = ('title', 'content')
+        fields = ('title', 'content', 'tags')
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -135,27 +123,28 @@ class PostForm(forms.ModelForm):
                 'placeholder': 'Write your post content here...',
                 'rows': 10,
                 'id': 'id_content'
-            }),
-        }
+            }),            'tags': TagWidget(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter tags separated by commas...',
+                'id': 'id_tags',
+                'autocomplete': 'off'
+            }),        }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Add custom attributes
         self.fields['title'].label = 'Post Title'
         self.fields['content'].label = 'Post Content'
+        self.fields['tags'].label = 'Tags'
         
         # Add help texts with character limits
         self.fields['title'].help_text = 'Maximum 200 characters (required)'
         self.fields['content'].help_text = 'Tell your story... (minimum 10 characters required)'
+        self.fields['tags'].help_text = 'Enter tags separated by commas (e.g., "Django, Python, Web Development")'
         
         # Add required field markers
         self.fields['title'].required = True
         self.fields['content'].required = True
-        
-        # Populate tags field if editing an existing post
-        if self.instance and self.instance.pk:
-            tag_names = ', '.join([tag.name for tag in self.instance.tags.all()])
-            self.fields['tags'].initial = tag_names
     
     def clean_title(self):
         """Validate post title"""
@@ -194,33 +183,6 @@ class PostForm(forms.ModelForm):
         
         return content
     
-    def clean_tags(self):
-        """Validate and process tags"""
-        tags_str = self.cleaned_data.get('tags', '').strip()
-        
-        if not tags_str:
-            # Tags are optional
-            return []
-        
-        # Split tags by comma and clean up
-        tag_names = [tag.strip() for tag in tags_str.split(',')]
-        tag_names = [tag for tag in tag_names if tag]  # Remove empty strings
-        
-        # Validate tag count
-        if len(tag_names) > 10:
-            raise forms.ValidationError('A post can have a maximum of 10 tags.')
-        
-        # Validate individual tag names
-        for tag_name in tag_names:
-            if len(tag_name) < 2:
-                raise forms.ValidationError(f'Tag "{tag_name}" is too short (minimum 2 characters).')
-            if len(tag_name) > 50:
-                raise forms.ValidationError(f'Tag "{tag_name}" is too long (maximum 50 characters).')
-            if any(char in tag_name for char in ['<', '>', '{', '}']):
-                raise forms.ValidationError(f'Tag "{tag_name}" contains invalid characters.')
-        
-        return tag_names
-    
     def clean(self):
         """Overall form validation"""
         cleaned_data = super().clean()
@@ -232,36 +194,6 @@ class PostForm(forms.ModelForm):
             raise forms.ValidationError('Post content should be more than just the title.')
         
         return cleaned_data
-    
-    def save_tags(self, post_instance):
-        """
-        Create or retrieve tags and associate them with the post.
-        This method should be called from the view after saving the post instance.
-        
-        Args:
-            post_instance: The Post model instance to associate tags with
-        """
-        tags_str = self.cleaned_data.get('tags', '').strip()
-        
-        # Clear existing tags
-        post_instance.tags.clear()
-        
-        if not tags_str:
-            return
-        
-        # Parse tags
-        tag_names = [tag.strip() for tag in tags_str.split(',')]
-        tag_names = [tag for tag in tag_names if tag]
-        
-        # Create or retrieve tags and associate with post
-        for tag_name in tag_names:
-            tag, created = Tag.objects.get_or_create(
-                name=tag_name,
-                defaults={'slug': tag_name.lower().replace(' ', '-')}
-            )
-            post_instance.tags.add(tag)
-        
-        return post_instance
 
 
 class PostSearchForm(forms.Form):

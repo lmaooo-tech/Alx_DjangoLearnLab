@@ -25,10 +25,9 @@ class UserProfileAdmin(admin.ModelAdmin):
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
     list_display = ('title', 'author', 'published_date', 'get_tags')
-    list_filter = ('published_date', 'author', 'tags')
-    search_fields = ('title', 'content', 'author__username', 'tags__name')
+    list_filter = ('published_date', 'author')
+    search_fields = ('title', 'content', 'author__username')
     readonly_fields = ('published_date',)
-    filter_horizontal = ('tags',)
     fieldsets = (
         ('Post Content', {
             'fields': ('title', 'content', 'author')
@@ -46,29 +45,6 @@ class PostAdmin(admin.ModelAdmin):
         """Display tags in admin list view"""
         return ', '.join([tag.name for tag in obj.tags.all()])
     get_tags.short_description = 'Tags'
-
-
-@admin.register(Tag)
-class TagAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'get_post_count', 'created_at')
-    list_filter = ('created_at',)
-    search_fields = ('name', 'slug')
-    readonly_fields = ('created_at', 'slug')
-    prepopulated_fields = {'slug': ('name',)}
-    fieldsets = (
-        ('Tag Information', {
-            'fields': ('name', 'slug')
-        }),
-        ('Metadata', {
-            'fields': ('created_at',),
-            'classes': ('collapse',)
-        }),
-    )
-
-    def get_post_count(self, obj):
-        """Display number of posts with this tag"""
-        return obj.posts.count()
-    get_post_count.short_description = 'Posts'
 
 
 @admin.register(Comment)

@@ -7,8 +7,9 @@ from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.http import Http404
+from taggit.models import Tag
 from .forms import CustomUserCreationForm, UserProfileForm, PostForm, PostSearchForm, PostFilterForm, CommentForm
-from .models import Post, UserProfile, Comment, Tag
+from .models import Post, UserProfile, Comment
 from django.db.models import Q
 
 
@@ -212,11 +213,9 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     redirect_field_name = 'next'
     
     def form_valid(self, form):
-        """Set the author to the current user and save tags"""
+        """Set the author to the current user"""
         form.instance.author = self.request.user
         response = super().form_valid(form)
-        # Save tags after post is created
-        form.save_tags(self.object)
         messages.success(self.request, 'Post created successfully!')
         return response
     
@@ -279,10 +278,8 @@ class PostUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             return redirect('blog:post_list')
     
     def form_valid(self, form):
-        """Process form submission and save tags"""
+        """Process form submission"""
         response = super().form_valid(form)
-        # Save tags after post is updated
-        form.save_tags(self.object)
         messages.success(self.request, 'Post updated successfully!')
         return response
     
@@ -486,7 +483,7 @@ class TagArchiveView(ListView):
         """Get all posts for the specified tag"""
         tag_slug = self.kwargs.get('slug')
         tag = get_object_or_404(Tag, slug=tag_slug)
-        return tag.posts.all().order_by('-published_date')
+        return Post.objects.filter(tags=tag).order_by('-published_date')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -496,9 +493,9 @@ class TagArchiveView(ListView):
         context['tag'] = tag
         context['title'] = f'Posts tagged "{tag.name}"'
         
-        # Get related tags (other tags used with this tag)
+        # Get related tags (other tags used with posts that have this tag)
         related_tags = Tag.objects.filter(
-            posts__in=tag.posts.all()
+            taggit_taggeditem_items__content_type__model='post'
         ).exclude(id=tag.id).distinct()[:10]
         
         context['related_tags'] = related_tags
