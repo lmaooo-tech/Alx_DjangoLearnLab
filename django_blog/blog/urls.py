@@ -56,6 +56,6 @@ urlpatterns = [
     path('search/', views.PostSearchView.as_view(), name='search'),
     
     # View all posts with a specific tag
-    path('tags/<slug:slug>/', views.TagArchiveView.as_view(), name='tag_archive'),
+    path('tags/<slug:tag_slug>/', views.PostByTagListView.as_view(), name='tag_archive'),
 ]
 

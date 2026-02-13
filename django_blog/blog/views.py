@@ -465,7 +465,7 @@ class PostSearchView(ListView):
         return context
 
 
-class TagArchiveView(ListView):
+class PostByTagListView(ListView):
     """Display all posts with a specific tag
     
     Features:
@@ -481,13 +481,13 @@ class TagArchiveView(ListView):
     
     def get_queryset(self):
         """Get all posts for the specified tag"""
-        tag_slug = self.kwargs.get('slug')
+        tag_slug = self.kwargs.get('tag_slug')
         tag = get_object_or_404(Tag, slug=tag_slug)
         return Post.objects.filter(tags=tag).order_by('-published_date')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        tag_slug = self.kwargs.get('slug')
+        tag_slug = self.kwargs.get('tag_slug')
         tag = get_object_or_404(Tag, slug=tag_slug)
         
         context['tag'] = tag
