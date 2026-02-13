@@ -13,14 +13,16 @@ body {
 
 header {
     background-color: #333;
-    padding: 10px;
+    padding: 10px 15px;
     text-align: center;
 }
 
 header nav {
     display: flex;
-    justify-content: center;
-    gap: 40px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
 header nav ul {
@@ -36,12 +38,57 @@ header nav ul li {
 header nav ul li a {
     color: white;
     text-decoration: none;
-    font-size: 18px;
+    font-size: 16px;
     transition: color 0.3s ease;
 }
 
 header nav ul li a:hover {
     color: #4CAF50;
+}
+
+/* Search Bar Styling */
+.search-bar-wrapper {
+    flex: 1;
+    min-width: 250px;
+    max-width: 400px;
+}
+
+.search-bar {
+    display: flex;
+    gap: 0;
+    background: white;
+    border-radius: 20px;
+    overflow: hidden;
+    padding: 5px;
+}
+
+.search-input {
+    flex: 1;
+    border: none;
+    padding: 8px 15px;
+    font-size: 14px;
+    outline: none;
+    background: white;
+}
+
+.search-input::placeholder {
+    color: #ccc;
+}
+
+.search-button {
+    border: none;
+    background: white;
+    color: #333;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    border-radius: 0 15px 15px 0;
+}
+
+.search-button:hover {
+    background: #4CAF50;
+    color: white;
 }
 
 .content {
@@ -1697,6 +1744,48 @@ footer {
     margin-top: 15px;
 }
 
+/* Tags form field styling */
+#id_tags {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    width: 100%;
+    background-color: #fff;
+}
+
+#id_tags:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+}
+
+#id_tags::placeholder {
+    color: #999;
+}
+
+/* Tags field group styling */
+.form-group #id_tags {
+    max-width: 100%;
+}
+
+.form-group label[for="id_tags"] {
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: block;
+    color: #333;
+}
+
+.form-group .helptext {
+    font-size: 13px;
+    color: #666;
+    margin-top: 6px;
+    display: block;
+    line-height: 1.4;
+}
+
 /* Responsive adjustments for blog posts */
 @media (max-width: 768px) {
     .posts-grid {
@@ -1771,5 +1860,114 @@ footer {
     
     .comment {
         padding: 15px;
+    }
+}
+
+/* ====================================================================== */
+/* Tags Display Styles */
+/* ====================================================================== */
+
+/* Tag badges in post detail */
+.post-tags-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 25px 0;
+    border-left: 4px solid #4CAF50;
+}
+
+.tags-heading {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 15px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tag-icon {
+    font-size: 20px;
+}
+
+.tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.tag-badge {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(76, 175, 80, 0.2);
+}
+
+.tag-badge:hover {
+    background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+/* Tag links in post list/cards */
+.post-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 15px;
+    background: #f9f9f9;
+    border-top: 1px solid #f0f0f0;
+}
+
+.tag-link {
+    display: inline-block;
+    background: white;
+    color: #4CAF50;
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    text-decoration: none;
+    border: 1px solid #4CAF50;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.tag-link:hover {
+    background: #4CAF50;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+}
+
+/* Responsive tag adjustments */
+@media (max-width: 768px) {
+    .post-tags-section {
+        padding: 15px;
+        margin: 15px 0;
+    }
+
+    .tags-heading {
+        font-size: 16px;
+    }
+
+    .tag-badge {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .post-tags {
+        padding: 10px;
+    }
+
+    .tag-link {
+        padding: 4px 10px;
+        font-size: 11px;
     }
 }

@@ -48,5 +48,14 @@ urlpatterns = [
     # ========================================================================
     # View all posts by a specific user
     path('users/<int:pk>/posts/', views.UserPostsView.as_view(), name='user_posts'),
+    
+    # ========================================================================
+    # Search and Tag URLs
+    # ========================================================================
+    # Advanced search with filters
+    path('search/', views.PostSearchView.as_view(), name='search'),
+    
+    # View all posts with a specific tag
+    path('tags/<slug:slug>/', views.TagArchiveView.as_view(), name='tag_archive'),
 ]
 

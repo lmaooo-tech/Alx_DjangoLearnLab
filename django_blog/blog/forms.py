@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from .models import UserProfile, Post, Comment
+from .models import UserProfile, Post, Comment, Tag
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -107,6 +107,19 @@ class UserProfileForm(forms.ModelForm):
 class PostForm(forms.ModelForm):
     """Form for creating and updating blog posts with comprehensive validation"""
     
+    tags = forms.CharField(
+        max_length=500,
+        required=False,
+        label='Tags',
+        help_text='Enter tags separated by commas (e.g., "Django, Python, Web Development")',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter tags separated by commas...',
+            'id': 'id_tags',
+            'autocomplete': 'off'
+        })
+    )
+    
     class Meta:
         model = Post
         fields = ('title', 'content')
@@ -138,6 +151,11 @@ class PostForm(forms.ModelForm):
         # Add required field markers
         self.fields['title'].required = True
         self.fields['content'].required = True
+        
+        # Populate tags field if editing an existing post
+        if self.instance and self.instance.pk:
+            tag_names = ', '.join([tag.name for tag in self.instance.tags.all()])
+            self.fields['tags'].initial = tag_names
     
     def clean_title(self):
         """Validate post title"""
@@ -176,6 +194,33 @@ class PostForm(forms.ModelForm):
         
         return content
     
+    def clean_tags(self):
+        """Validate and process tags"""
+        tags_str = self.cleaned_data.get('tags', '').strip()
+        
+        if not tags_str:
+            # Tags are optional
+            return []
+        
+        # Split tags by comma and clean up
+        tag_names = [tag.strip() for tag in tags_str.split(',')]
+        tag_names = [tag for tag in tag_names if tag]  # Remove empty strings
+        
+        # Validate tag count
+        if len(tag_names) > 10:
+            raise forms.ValidationError('A post can have a maximum of 10 tags.')
+        
+        # Validate individual tag names
+        for tag_name in tag_names:
+            if len(tag_name) < 2:
+                raise forms.ValidationError(f'Tag "{tag_name}" is too short (minimum 2 characters).')
+            if len(tag_name) > 50:
+                raise forms.ValidationError(f'Tag "{tag_name}" is too long (maximum 50 characters).')
+            if any(char in tag_name for char in ['<', '>', '{', '}']):
+                raise forms.ValidationError(f'Tag "{tag_name}" contains invalid characters.')
+        
+        return tag_names
+    
     def clean(self):
         """Overall form validation"""
         cleaned_data = super().clean()
@@ -187,18 +232,82 @@ class PostForm(forms.ModelForm):
             raise forms.ValidationError('Post content should be more than just the title.')
         
         return cleaned_data
+    
+    def save_tags(self, post_instance):
+        """
+        Create or retrieve tags and associate them with the post.
+        This method should be called from the view after saving the post instance.
+        
+        Args:
+            post_instance: The Post model instance to associate tags with
+        """
+        tags_str = self.cleaned_data.get('tags', '').strip()
+        
+        # Clear existing tags
+        post_instance.tags.clear()
+        
+        if not tags_str:
+            return
+        
+        # Parse tags
+        tag_names = [tag.strip() for tag in tags_str.split(',')]
+        tag_names = [tag for tag in tag_names if tag]
+        
+        # Create or retrieve tags and associate with post
+        for tag_name in tag_names:
+            tag, created = Tag.objects.get_or_create(
+                name=tag_name,
+                defaults={'slug': tag_name.lower().replace(' ', '-')}
+            )
+            post_instance.tags.add(tag)
+        
+        return post_instance
 
 
 class PostSearchForm(forms.Form):
-    """Form for searching blog posts"""
+    """Form for searching blog posts by title, content, and tags"""
+    
+    SEARCH_TYPE_CHOICES = [
+        ('all', 'All Content (Title, Content, Tags)'),
+        ('title', 'Title Only'),
+        ('content', 'Content Only'),
+        ('tags', 'Tags Only'),
+        ('author', 'Author'),
+    ]
+    
     q = forms.CharField(
         max_length=200,
         required=False,
-        label='Search Posts',
+        label='Search',
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Search by title or content...',
-            'id': 'search_query'
+            'placeholder': 'Enter search term...',
+            'id': 'search_query',
+            'autocomplete': 'off'
+        })
+    )
+    
+    search_type = forms.ChoiceField(
+        choices=SEARCH_TYPE_CHOICES,
+        required=False,
+        initial='all',
+        label='Search In',
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'search_type'
+        })
+    )
+    
+    tags = forms.CharField(
+        max_length=300,
+        required=False,
+        label='Filter by Tags',
+        help_text='Enter tag names separated by commas (e.g., "Django, Python")',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Filter by tags (comma-separated)...',
+            'id': 'search_tags',
+            'autocomplete': 'off'
         })
     )
     
@@ -208,6 +317,32 @@ class PostSearchForm(forms.Form):
         if query and len(query) < 2:
             raise forms.ValidationError('Search query must be at least 2 characters long.')
         return query
+    
+    def clean_tags(self):
+        """Validate tag input"""
+        tags_str = self.cleaned_data.get('tags', '').strip()
+        if not tags_str:
+            return []
+        
+        # Split and validate tags
+        tag_names = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
+        
+        if len(tag_names) > 5:
+            raise forms.ValidationError('You can filter by a maximum of 5 tags.')
+        
+        for tag_name in tag_names:
+            if len(tag_name) < 2:
+                raise forms.ValidationError(f'Tag "{tag_name}" is too short (minimum 2 characters).')
+        
+        return tag_names
+    
+    def clean_search_type(self):
+        """Validate search type"""
+        search_type = self.cleaned_data.get('search_type')
+        valid_types = [choice[0] for choice in self.SEARCH_TYPE_CHOICES]
+        if search_type and search_type not in valid_types:
+            raise forms.ValidationError('Invalid search type.')
+        return search_type
 
 
 class PostFilterForm(forms.Form):

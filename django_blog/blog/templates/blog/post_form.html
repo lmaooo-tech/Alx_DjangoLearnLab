@@ -71,6 +71,24 @@
             {% endif %}
         </div>
 
+        <!-- Tags Field -->
+        <div class="form-group">
+            <label for="id_tags">{{ form.tags.label }}</label>
+            {{ form.tags }}
+            <div class="field-info">
+                {% if form.tags.help_text %}
+                    <small class="help-text">{{ form.tags.help_text|safe }}</small>
+                {% endif %}
+            </div>
+            {% if form.tags.errors %}
+                <div class="form-errors">
+                    {% for error in form.tags.errors %}
+                        <p class="error-icon">❌ {{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
         <!-- Non-field Errors -->
         {% if form.non_field_errors %}
             <div class="form-errors non-field-errors">
@@ -85,7 +103,7 @@
             <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
                 ✓ {{ action }} Post
             </button>
-            <a href="{% url 'post_list' %}" class="btn btn-secondary btn-lg">
+            <a href="{% url 'blog:post_list' %}" class="btn btn-secondary btn-lg">
                 ← Cancel
             </a>
         </div>

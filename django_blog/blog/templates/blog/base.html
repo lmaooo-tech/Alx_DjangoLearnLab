@@ -11,19 +11,35 @@
     <header>
         <nav>
             <ul class="nav-left">
-                <li><a href="{% url 'post_list' %}">Home</a></li>
-                <li><a href="{% url 'posts' %}">Blog Posts</a></li>
+                <li><a href="{% url 'blog:post_list' %}">Home</a></li>
+                <li><a href="{% url 'blog:posts' %}">Blog Posts</a></li>
                 {% if user.is_authenticated %}
-                    <li><a href="{% url 'post_create' %}">+ New Post</a></li>
+                    <li><a href="{% url 'blog:post_create' %}">+ New Post</a></li>
                 {% endif %}
             </ul>
+            
+            <!-- Search Bar -->
+            <div class="search-bar-wrapper">
+                <form method="get" action="{% url 'blog:search' %}" class="search-bar">
+                    <input 
+                        type="text" 
+                        name="q" 
+                        placeholder="Search posts..." 
+                        class="search-input"
+                        autocomplete="off"
+                        required
+                    >
+                    <button type="submit" class="search-button">🔍</button>
+                </form>
+            </div>
+            
             <ul class="nav-right">
                 {% if user.is_authenticated %}
-                    <li><a href="{% url 'profile' %}">{{ user.username }}</a></li>
-                    <li><a href="{% url 'logout' %}">Logout</a></li>
+                    <li><a href="{% url 'blog:profile' %}">{{ user.username }}</a></li>
+                    <li><a href="{% url 'blog:logout' %}">Logout</a></li>
                 {% else %}
-                    <li><a href="{% url 'login' %}">Login</a></li>
-                    <li><a href="{% url 'register' %}">Register</a></li>
+                    <li><a href="{% url 'blog:login' %}">Login</a></li>
+                    <li><a href="{% url 'blog:register' %}">Register</a></li>
                 {% endif %}
             </ul>
         </nav>

@@ -8,7 +8,7 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.urls import reverse_lazy
 from django.http import Http404
 from .forms import CustomUserCreationForm, UserProfileForm, PostForm, PostSearchForm, PostFilterForm, CommentForm
-from .models import Post, UserProfile, Comment
+from .models import Post, UserProfile, Comment, Tag
 from django.db.models import Q
 
 
@@ -111,12 +111,32 @@ class PostListView(ListView):
         
         # Search functionality
         search_query = self.request.GET.get('q', '').strip()
+        search_type = self.request.GET.get('search_type', 'all').strip()
+        
         if search_query:
-            queryset = queryset.filter(
-                Q(title__icontains=search_query) |
-                Q(content__icontains=search_query) |
-                Q(author__username__icontains=search_query)
-            )
+            if search_type == 'title':
+                queryset = queryset.filter(title__icontains=search_query)
+            elif search_type == 'content':
+                queryset = queryset.filter(content__icontains=search_query)
+            elif search_type == 'tags':
+                queryset = queryset.filter(tags__name__icontains=search_query).distinct()
+            elif search_type == 'author':
+                queryset = queryset.filter(author__username__icontains=search_query)
+            else:  # 'all' - search in all fields
+                queryset = queryset.filter(
+                    Q(title__icontains=search_query) |
+                    Q(content__icontains=search_query) |
+                    Q(author__username__icontains=search_query) |
+                    Q(tags__name__icontains=search_query)
+                ).distinct()
+        
+        # Tag filtering
+        tags_param = self.request.GET.get('tags', '').strip()
+        if tags_param:
+            tag_names = [tag.strip() for tag in tags_param.split(',') if tag.strip()]
+            for tag_name in tag_names:
+                queryset = queryset.filter(tags__name__iexact=tag_name)
+            queryset = queryset.distinct()
         
         # Sort/Filter functionality
         sort_by = self.request.GET.get('sort_by', 'newest')
@@ -137,6 +157,8 @@ class PostListView(ListView):
         context['search_form'] = PostSearchForm(self.request.GET or None)
         context['filter_form'] = PostFilterForm(self.request.GET or None)
         context['search_query'] = self.request.GET.get('q', '').strip()
+        context['search_type'] = self.request.GET.get('search_type', 'all').strip()
+        context['filter_tags'] = self.request.GET.get('tags', '').strip()
         return context
 
 
@@ -190,9 +212,11 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     redirect_field_name = 'next'
     
     def form_valid(self, form):
-        """Set the author to the current user before saving"""
+        """Set the author to the current user and save tags"""
         form.instance.author = self.request.user
         response = super().form_valid(form)
+        # Save tags after post is created
+        form.save_tags(self.object)
         messages.success(self.request, 'Post created successfully!')
         return response
     
@@ -255,8 +279,10 @@ class PostUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             return redirect('blog:post_list')
     
     def form_valid(self, form):
-        """Process form submission"""
+        """Process form submission and save tags"""
         response = super().form_valid(form)
+        # Save tags after post is updated
+        form.save_tags(self.object)
         messages.success(self.request, 'Post updated successfully!')
         return response
     
@@ -353,6 +379,130 @@ class UserPostsView(ListView):
         author = get_object_or_404(User, pk=self.kwargs['pk'])
         context['author'] = author
         context['title'] = f'Posts by {author.get_full_name or author.username}'
+        return context
+
+
+class PostSearchView(ListView):
+    """Advanced search view for blog posts using tags and keywords
+    
+    Features:
+    - Search by title, content, tags, or author
+    - Filter by multiple tags
+    - Supports Q objects for complex queries
+    - Pagination support
+    - User-friendly search form
+    """
+    model = Post
+    template_name = 'blog/search_results.html'
+    context_object_name = 'posts'
+    paginate_by = 10
+    
+    def get_queryset(self):
+        """Build complex query using Q objects"""
+        queryset = Post.objects.all()
+        
+        # Get search parameters
+        search_query = self.request.GET.get('q', '').strip()
+        search_type = self.request.GET.get('search_type', 'all').strip()
+        tags_param = self.request.GET.get('tags', '').strip()
+        
+        # Build search query using Q objects
+        if search_query:
+            if search_type == 'title':
+                queryset = queryset.filter(title__icontains=search_query)
+            elif search_type == 'content':
+                queryset = queryset.filter(content__icontains=search_query)
+            elif search_type == 'tags':
+                queryset = queryset.filter(tags__name__icontains=search_query).distinct()
+            elif search_type == 'author':
+                queryset = queryset.filter(author__username__icontains=search_query)
+            else:  # 'all' - complex query with Q objects
+                queryset = queryset.filter(
+                    Q(title__icontains=search_query) |
+                    Q(content__icontains=search_query) |
+                    Q(author__username__icontains=search_query) |
+                    Q(tags__name__icontains=search_query)
+                ).distinct()
+        
+        # Filter by tags
+        if tags_param:
+            tag_names = [tag.strip() for tag in tags_param.split(',') if tag.strip()]
+            for tag_name in tag_names:
+                queryset = queryset.filter(tags__name__iexact=tag_name)
+            queryset = queryset.distinct()
+        
+        # Default ordering
+        queryset = queryset.order_by('-published_date')
+        
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        search_query = self.request.GET.get('q', '').strip()
+        search_type = self.request.GET.get('search_type', 'all').strip()
+        tags_param = self.request.GET.get('tags', '').strip()
+        
+        # Build search result title
+        if search_query or tags_param:
+            context['title'] = 'Search Results'
+            context['search_query'] = search_query
+            context['search_type'] = search_type
+            context['filter_tags'] = tags_param
+            
+            # Build description
+            descriptions = []
+            if search_query:
+                descriptions.append(f'"{search_query}" in {dict(PostSearchForm.base_fields["search_type"].choices).get(search_type, "all content")}')
+            if tags_param:
+                descriptions.append(f'tags: {tags_param}')
+            
+            context['search_description'] = ' and '.join(descriptions)
+        else:
+            context['title'] = 'Search'
+            context['search_description'] = 'Enter search terms to find posts'
+        
+        context['search_form'] = PostSearchForm(self.request.GET or None)
+        context['has_results'] = self.get_queryset().exists()
+        context['result_count'] = self.get_queryset().count()
+        
+        return context
+
+
+class TagArchiveView(ListView):
+    """Display all posts with a specific tag
+    
+    Features:
+    - Show all posts associated with a tag
+    - Display tag information
+    - Support pagination
+    - Related tags sidebar
+    """
+    model = Post
+    template_name = 'blog/tag_archive.html'
+    context_object_name = 'posts'
+    paginate_by = 10
+    
+    def get_queryset(self):
+        """Get all posts for the specified tag"""
+        tag_slug = self.kwargs.get('slug')
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        return tag.posts.all().order_by('-published_date')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        tag_slug = self.kwargs.get('slug')
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        
+        context['tag'] = tag
+        context['title'] = f'Posts tagged "{tag.name}"'
+        
+        # Get related tags (other tags used with this tag)
+        related_tags = Tag.objects.filter(
+            posts__in=tag.posts.all()
+        ).exclude(id=tag.id).distinct()[:10]
+        
+        context['related_tags'] = related_tags
+        
         return context
 
 
