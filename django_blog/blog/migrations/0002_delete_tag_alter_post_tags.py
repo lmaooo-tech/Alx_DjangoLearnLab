@@ -12,10 +12,17 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # First, remove the old tags field
+        migrations.RemoveField(
+            model_name='post',
+            name='tags',
+        ),
+        # Then delete the Tag model
         migrations.DeleteModel(
             name='Tag',
         ),
-        migrations.AlterField(
+        # Finally, add the new TaggableManager field
+        migrations.AddField(
             model_name='post',
             name='tags',
             field=taggit.managers.TaggableManager(blank=True, help_text='A comma-separated list of tags', through='taggit.TaggedItem', to='taggit.Tag', verbose_name='Tags'),
