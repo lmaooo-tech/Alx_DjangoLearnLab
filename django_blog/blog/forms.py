@@ -124,12 +124,7 @@ class PostForm(forms.ModelForm):
                 'rows': 10,
                 'id': 'id_content'
             }),
-            'tags': TagWidget(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter tags separated by commas...',
-                'id': 'id_tags',
-                'autocomplete': 'off'
-            }),
+            'tags': TagWidget(),
         }
     
     def __init__(self, *args, **kwargs):
