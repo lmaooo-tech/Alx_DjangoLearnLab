@@ -123,8 +123,13 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
-TEMPLATES = [
-    {
-        'DIRS': [BASE_DIR / 'templates'],
-    },
-]
+# Media files (User uploads)
+# https://docs.djangoproject.com/en/6.0/howto/manage-files/
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Default authentication backend
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'profile'
+LOGOUT_REDIRECT_URL = 'login'

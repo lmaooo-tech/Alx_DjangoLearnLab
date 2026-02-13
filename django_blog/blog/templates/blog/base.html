@@ -4,16 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Django Blog{% endblock %}</title>
+    {% load static %}
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
 <body>
     <header>
         <nav>
-            <ul>
+            <ul class="nav-left">
                 <li><a href="{% url 'home' %}">Home</a></li>
                 <li><a href="{% url 'posts' %}">Blog Posts</a></li>
-                <li><a href="{% url 'login' %}">Login</a></li>
-                <li><a href="{% url 'register' %}">Register</a></li>
+            </ul>
+            <ul class="nav-right">
+                {% if user.is_authenticated %}
+                    <li><a href="{% url 'profile' %}">{{ user.username }}</a></li>
+                    <li><a href="{% url 'logout' %}">Logout</a></li>
+                {% else %}
+                    <li><a href="{% url 'login' %}">Login</a></li>
+                    <li><a href="{% url 'register' %}">Register</a></li>
+                {% endif %}
             </ul>
         </nav>
     </header>
@@ -28,6 +36,7 @@
         <p>&copy; 2024 Django Blog</p>
     </footer>
 
+    {% load static %}
     <script src="{% static 'js/scripts.js' %}"></script>
 </body>
 </html>

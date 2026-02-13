@@ -1,0 +1,114 @@
+{% extends 'blog/base.html' %}
+{% load static %}
+
+{% block title %}Register - Django Blog{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <h2>Create an Account</h2>
+    
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <form method="post" class="auth-form">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="id_username">Username:</label>
+            {{ form.username }}
+            {% if form.username.errors %}
+                <div class="form-errors">
+                    {% for error in form.username.errors %}
+                        <p class="error">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if form.username.help_text %}
+                <small class="help-text">{{ form.username.help_text|safe }}</small>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="id_email">Email:</label>
+            {{ form.email }}
+            {% if form.email.errors %}
+                <div class="form-errors">
+                    {% for error in form.email.errors %}
+                        <p class="error">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if form.email.help_text %}
+                <small class="help-text">{{ form.email.help_text|safe }}</small>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="id_first_name">First Name (Optional):</label>
+            {{ form.first_name }}
+            {% if form.first_name.errors %}
+                <div class="form-errors">
+                    {% for error in form.first_name.errors %}
+                        <p class="error">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="id_last_name">Last Name (Optional):</label>
+            {{ form.last_name }}
+            {% if form.last_name.errors %}
+                <div class="form-errors">
+                    {% for error in form.last_name.errors %}
+                        <p class="error">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="id_password1">Password:</label>
+            {{ form.password1 }}
+            {% if form.password1.errors %}
+                <div class="form-errors">
+                    {% for error in form.password1.errors %}
+                        <p class="error">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if form.password1.help_text %}
+                <small class="help-text">{{ form.password1.help_text|safe }}</small>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="id_password2">Confirm Password:</label>
+            {{ form.password2 }}
+            {% if form.password2.errors %}
+                <div class="form-errors">
+                    {% for error in form.password2.errors %}
+                        <p class="error">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if form.password2.help_text %}
+                <small class="help-text">{{ form.password2.help_text|safe }}</small>
+            {% endif %}
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Register</button>
+    </form>
+    
+    <p class="auth-link">
+        Already have an account? <a href="{% url 'login' %}">Login here</a>
+    </p>
+</div>
+{% endblock %}
