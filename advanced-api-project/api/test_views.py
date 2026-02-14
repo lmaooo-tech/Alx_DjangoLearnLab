@@ -592,123 +592,87 @@ class BookValidationTests(BookAPITestCase):
 class BookAuthenticationTests(BookAPITestCase):
     """Tests for authentication using client.login() method."""
     
-    def test_login_and_create_book(self):
-        """Test creating a book after logging in with client.login()."""
-        # Create a new client and login
-        client = APIClient()
-        login_successful = client.login(username='testuser', password='testpass123')
+    def test_client_login_basic(self):
+        """Test basic client.login() functionality."""
+        login_successful = self.client.login(username='testuser', password='testpass123')
+        self.assertTrue(login_successful)
+    
+    def test_client_login_wrong_password(self):
+        """Test client.login() fails with wrong password."""
+        login_successful = self.client.login(username='testuser', password='wrongpassword')
+        self.assertFalse(login_successful)
+    
+    def test_client_login_nonexistent_user(self):
+        """Test client.login() fails with nonexistent user."""
+        login_successful = self.client.login(username='nonexistent', password='anypassword')
+        self.assertFalse(login_successful)
+    
+    def test_create_book_with_client_login(self):
+        """Test creating a book after logging in with self.client.login()."""
+        # Login using self.client
+        login_successful = self.client.login(username='testuser', password='testpass123')
         self.assertTrue(login_successful)
         
         # Attempt to create a book
         data = {
-            'title': 'Book Created After Login',
+            'title': 'Book Created With self.client.login',
             'publication_year': 2023,
             'author': self.author1.pk
         }
-        response = client.post(self.create_url, data)
+        response = self.client.post(self.create_url, data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['title'], 'Book Created After Login')
+        self.assertEqual(response.data['title'], 'Book Created With self.client.login')
     
-    def test_login_and_update_book(self):
-        """Test updating a book after logging in with client.login()."""
-        client = APIClient()
-        login_successful = client.login(username='testuser', password='testpass123')
-        self.assertTrue(login_successful)
+    def test_update_book_with_client_login(self):
+        """Test updating a book after logging in with self.client.login()."""
+        self.client.login(username='testuser', password='testpass123')
         
         url = reverse('book-update', kwargs={'pk': self.book1.pk})
         data = {
-            'title': 'Updated After Login',
+            'title': 'Updated With self.client.login',
             'publication_year': 2020,
             'author': self.author1.pk
         }
-        response = client.put(url, data)
+        response = self.client.put(url, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['title'], 'Updated After Login')
+        self.assertEqual(response.data['title'], 'Updated With self.client.login')
     
-    def test_login_and_delete_book(self):
-        """Test deleting a book after logging in with client.login()."""
-        client = APIClient()
-        login_successful = client.login(username='testuser', password='testpass123')
-        self.assertTrue(login_successful)
+    def test_delete_book_with_client_login(self):
+        """Test deleting a book after logging in with self.client.login()."""
+        self.client.login(username='testuser', password='testpass123')
         
         url = reverse('book-delete', kwargs={'pk': self.book1.pk})
-        response = client.delete(url)
+        response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Book.objects.filter(pk=self.book1.pk).exists())
     
-    def test_login_failure_with_wrong_credentials(self):
-        """Test that login fails with incorrect credentials."""
-        client = APIClient()
-        login_successful = client.login(username='testuser', password='wrongpassword')
-        self.assertFalse(login_successful)
-        
-        # Verify that requests requiring authentication still fail
-        data = {
-            'title': 'Should Fail',
-            'publication_year': 2023,
-            'author': self.author1.pk
-        }
-        response = client.post(self.create_url, data)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-    
-    def test_logout_revokes_access(self):
-        """Test that logging out revokes authenticated access."""
-        client = APIClient()
-        client.login(username='testuser', password='testpass123')
-        
-        # Verify authenticated access works
+    def test_client_login_then_logout(self):
+        """Test logging out with self.client after login."""
+        # Login
+        self.client.login(username='testuser', password='testpass123')
         data = {
             'title': 'Before Logout',
             'publication_year': 2023,
             'author': self.author1.pk
         }
-        response = client.post(self.create_url, data)
+        response = self.client.post(self.create_url, data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         
         # Logout
-        client.logout()
+        self.client.logout()
         
-        # Verify access is revoked after logout
+        # Verify access is revoked
         data = {
             'title': 'After Logout',
             'publication_year': 2023,
             'author': self.author1.pk
         }
-        response = client.post(self.create_url, data)
+        response = self.client.post(self.create_url, data)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
     
-    def test_logged_in_client_can_perform_crud(self):
-        """Test that the logged-in client from setUp can perform CRUD operations."""
-        # Test Create
-        data = {
-            'title': 'CRUD Test Book',
-            'publication_year': 2023,
-            'author': self.author1.pk
-        }
-        response = self.logged_in_client.post(self.create_url, data)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        book_id = response.data['id']
-        
-        # Test Read
-        url = reverse('book-detail', kwargs={'pk': book_id})
-        response = self.logged_in_client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # Test Update
-        url = reverse('book-update', kwargs={'pk': book_id})
-        data['title'] = 'Updated CRUD Test Book'
-        response = self.logged_in_client.put(url, data)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # Test Delete
-        url = reverse('book-delete', kwargs={'pk': book_id})
-        response = self.logged_in_client.delete(url)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-    
-    def test_admin_user_login(self):
-        """Test that admin users can login and perform operations."""
-        client = APIClient()
-        login_successful = client.login(username='adminuser', password='adminpass123')
+    def test_admin_user_with_client_login(self):
+        """Test admin user login with self.client.login()."""
+        login_successful = self.client.login(username='adminuser', password='adminpass123')
         self.assertTrue(login_successful)
         
         # Admin should be able to create books
@@ -717,5 +681,5 @@ class BookAuthenticationTests(BookAPITestCase):
             'publication_year': 2023,
             'author': self.author1.pk
         }
-        response = client.post(self.create_url, data)
+        response = self.client.post(self.create_url, data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
