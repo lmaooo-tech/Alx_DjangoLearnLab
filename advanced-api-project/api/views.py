@@ -9,42 +9,97 @@ from .filters import BookFilter
 # ListView - Retrieve all books
 class BookListView(generics.ListAPIView):
     """
-    API view to retrieve a list of all books.
+    API view to retrieve a list of all books with advanced query capabilities.
     
-    Advanced Filtering Options:
+    ===================
+    FILTERING OPTIONS:
+    ===================
     - title: Filter by title (case-insensitive, contains)
+      Example: /api/books/?title=django
+    
     - author: Filter by author ID (exact match)
+      Example: /api/books/?author=1
+    
     - author_name: Filter by author name (case-insensitive, contains)
+      Example: /api/books/?author_name=smith
+    
     - publication_year: Filter by exact publication year
+      Example: /api/books/?publication_year=2024
+    
     - publication_year_min: Filter books published from this year onwards
+      Example: /api/books/?publication_year_min=2020
+    
     - publication_year_max: Filter books published up to this year
+      Example: /api/books/?publication_year_max=2024
     
-    Search: Searches across title and author name
-    Ordering: Can order by title, publication_year (use '-' prefix for descending)
+    - Combined range: /api/books/?publication_year_min=2020&publication_year_max=2024
     
-    Example queries:
-    - /api/books/?title=django - Books with "django" in title
-    - /api/books/?author_name=smith - Books by authors with "smith" in name
-    - /api/books/?publication_year_min=2020&publication_year_max=2024
-    - /api/books/?search=python - Search for "python" in title or author
-    - /api/books/?ordering=-publication_year - Order by year (newest first)
+    ===================
+    SEARCH FUNCTIONALITY:
+    ===================
+    Use the 'search' parameter to perform text searches across multiple fields:
+    - Searches in: title and author name
+    - Case-insensitive partial matching
+    
+    Examples:
+    - /api/books/?search=python - Find books with "python" in title or author name
+    - /api/books/?search=django rest - Search for multiple terms
+    
+    ===================
+    ORDERING OPTIONS:
+    ===================
+    Use the 'ordering' parameter to sort results:
+    - Available fields: title, publication_year
+    - Default order: title (ascending)
+    - Use '-' prefix for descending order
+    
+    Examples:
+    - /api/books/?ordering=title - Sort by title A-Z
+    - /api/books/?ordering=-title - Sort by title Z-A
+    - /api/books/?ordering=publication_year - Sort by year (oldest first)
+    - /api/books/?ordering=-publication_year - Sort by year (newest first)
+    
+    ===================
+    COMBINING QUERIES:
+    ===================
+    You can combine filtering, searching, and ordering:
+    - /api/books/?author_name=smith&ordering=-publication_year
+    - /api/books/?search=python&publication_year_min=2020&ordering=title
+    
+    ===================
+    PAGINATION:
+    ===================
+    Results are paginated (10 items per page by default)
+    - Use ?page=2 to access additional pages
     """
-    queryset = Book.objects.all()
+    queryset = Book.objects.all().select_related('author')  # Optimize queries
     serializer_class = BookSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]  # Read-only for unauthenticated users
     
-    # Enable filtering, searching, and ordering
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    # Enable filtering, searching, and ordering backends
+    filter_backends = [
+        DjangoFilterBackend,  # For field-specific filtering
+        filters.SearchFilter,  # For text search across multiple fields
+        filters.OrderingFilter  # For sorting results
+    ]
     
-    # Use custom filter class for advanced filtering
+    # Advanced filtering using custom filter class
     filterset_class = BookFilter
     
-    # Search configuration
-    search_fields = ['title', 'author__name']  # Fields that can be searched
+    # Search configuration - enables text search across these fields
+    search_fields = [
+        'title',          # Search in book title
+        'author__name'    # Search in related author's name
+    ]
     
-    # Ordering configuration
-    ordering_fields = ['title', 'publication_year']  # Fields that can be ordered
-    ordering = ['title']  # Default ordering
+    # Ordering configuration - allows sorting by these fields
+    ordering_fields = [
+        'title',              # Allow ordering by title
+        'publication_year'    # Allow ordering by publication year
+    ]
+    
+    # Default ordering when no ordering parameter is provided
+    ordering = ['title']
 
 
 # DetailView - Retrieve a single book by ID
