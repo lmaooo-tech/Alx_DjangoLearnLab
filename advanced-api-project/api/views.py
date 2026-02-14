@@ -3,15 +3,31 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticate
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Book
 from .serializers import BookSerializer
+from .filters import BookFilter
 
 
 # ListView - Retrieve all books
 class BookListView(generics.ListAPIView):
     """
     API view to retrieve a list of all books.
-    Supports filtering by title, author, and publication year.
-    Supports searching by title and author name.
-    Supports ordering by title and publication_year.
+    
+    Advanced Filtering Options:
+    - title: Filter by title (case-insensitive, contains)
+    - author: Filter by author ID (exact match)
+    - author_name: Filter by author name (case-insensitive, contains)
+    - publication_year: Filter by exact publication year
+    - publication_year_min: Filter books published from this year onwards
+    - publication_year_max: Filter books published up to this year
+    
+    Search: Searches across title and author name
+    Ordering: Can order by title, publication_year (use '-' prefix for descending)
+    
+    Example queries:
+    - /api/books/?title=django - Books with "django" in title
+    - /api/books/?author_name=smith - Books by authors with "smith" in name
+    - /api/books/?publication_year_min=2020&publication_year_max=2024
+    - /api/books/?search=python - Search for "python" in title or author
+    - /api/books/?ordering=-publication_year - Order by year (newest first)
     """
     queryset = Book.objects.all()
     serializer_class = BookSerializer
@@ -19,8 +35,14 @@ class BookListView(generics.ListAPIView):
     
     # Enable filtering, searching, and ordering
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['title', 'author', 'publication_year']  # Fields that can be filtered
+    
+    # Use custom filter class for advanced filtering
+    filterset_class = BookFilter
+    
+    # Search configuration
     search_fields = ['title', 'author__name']  # Fields that can be searched
+    
+    # Ordering configuration
     ordering_fields = ['title', 'publication_year']  # Fields that can be ordered
     ordering = ['title']  # Default ordering
 
