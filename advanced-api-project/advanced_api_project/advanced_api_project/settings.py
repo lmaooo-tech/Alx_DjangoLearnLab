@@ -79,6 +79,20 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'TEST': {
+            'NAME': BASE_DIR / 'test_db.sqlite3',
+            'MIRROR': None,
+            'CHARSET': None,
+            'COLLATION': None,
+            'CREATE_DB': True,
+            'USER': None,
+            'PASSWORD': None,
+            'HOST': None,
+            'PORT': None,
+            'DEPENDENCIES': [],
+            'SERIALIZE': False,
+            'TEMPLATE': None,
+        }
     }
 }
 
@@ -133,3 +147,124 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication',
     ],
 }
+
+# ============================================================================
+# TEST CONFIGURATION
+# ============================================================================
+# Django Test Framework Settings
+# Configured to use separate test database and optimize test execution
+
+import sys
+import os
+
+# Determine if tests are running
+TESTING = 'test' in sys.argv
+
+if TESTING:
+    # Test Database
+    # Use in-memory SQLite database for faster test execution
+    DATABASES['default']['TEST'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',  # Use in-memory database for faster tests
+        'MIRROR': None,
+        'CHARSET': None,
+        'COLLATION': None,
+        'CREATE_DB': True,
+        'USER': None,
+        'PASSWORD': None,
+        'HOST': None,
+        'PORT': None,
+        'DEPENDENCIES': [],
+        'SERIALIZE': False,
+        'TEMPLATE': None,
+    }
+    
+    # Test Logging Configuration
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+            },
+        },
+        'root': {
+            'handlers': ['console'],
+            'level': 'WARNING',  # Only show warnings and errors during tests
+        },
+    }
+    
+    # Performance Optimization for Tests
+    PASSWORD_HASHERS = [
+        'django.contrib.auth.hashers.MD5PasswordHasher',  # Faster for tests
+    ]
+    
+    # Disable CSRF for test API requests
+    CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+    
+else:
+    # Development Configuration (non-test)
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'verbose': {
+                'format': '{levelname} {asctime} {module} {message}',
+                'style': '{',
+            },
+            'simple': {
+                'format': '{levelname} {message}',
+                'style': '{',
+            },
+        },
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'verbose',
+            },
+            'file': {
+                'class': 'logging.FileHandler',
+                'filename': BASE_DIR / 'logs' / 'django.log',
+                'formatter': 'verbose',
+            },
+        },
+        'root': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+        },
+        'loggers': {
+            'django': {
+                'handlers': ['console', 'file'],
+                'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+                'propagate': False,
+            },
+        },
+    }
+    
+    # Standard password hashers for development
+    PASSWORD_HASHERS = [
+        'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+        'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+        'django.contrib.auth.hashers.Argon2PasswordHasher',
+        'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    ]
+
+# Default Auto Field Configuration
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ============================================================================
+# TEST RUNNER CONFIGURATION
+# ============================================================================
+# Configure Django's test runner for optimal test execution
+
+TEST_RUNNER = 'django.test.runner.DiscoverRunner'
+
+# Test Settings Summary (for documentation)
+if TESTING:
+    print("\n" + "="*70)
+    print("TEST ENVIRONMENT CONFIGURATION ACTIVE")
+    print("="*70)
+    print("Database: In-memory SQLite (fastest)")
+    print("Password Hashing: MD5 (fast for tests)")
+    print("Logging: WARNING level (reduced noise)")
+    print("="*70 + "\n")
