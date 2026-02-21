@@ -175,6 +175,9 @@ class NotificationPreference(models.Model):
     class Meta:
         verbose_name = 'Notification Preference'
         verbose_name_plural = 'Notification Preferences'
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+        ]
     
     def __str__(self):
         """String representation."""
