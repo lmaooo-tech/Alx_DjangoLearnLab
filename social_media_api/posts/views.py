@@ -4,8 +4,10 @@ from rest_framework.response import Response
 from django.db.models import Q, Prefetch
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django.contrib.contenttypes.models import ContentType
 
 from .models import Post, Like, Comment
+from notifications.models import Notification
 from .serializers import (
     PostSerializer,
     PostCreateSerializer,
@@ -74,17 +76,26 @@ class PostViewSet(viewsets.ModelViewSet):
         Like a post.
         POST /api/posts/<id>/like/
         """
-        post = self.get_object()
+        post = generics.get_object_or_404(Post, pk=id)
         
-        # Check if user already liked the post
-        if post.likes.filter(user=request.user).exists():
+        # Get or create the like
+        like, created = Like.objects.get_or_create(user=request.user, post=post)
+        
+        if not created:
             return Response(
                 {'error': 'You have already liked this post.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Create the like
-        Like.objects.create(user=request.user, post=post)
+        # Create notification if not self-like
+        if post.author != request.user:
+            Notification.objects.create(
+                recipient=post.author,
+                actor=request.user,
+                verb='like',
+                content_type=ContentType.objects.get_for_model(Post),
+                object_id=post.id
+            )
         
         return Response(
             {
