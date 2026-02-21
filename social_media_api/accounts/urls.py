@@ -17,6 +17,15 @@ urlpatterns = [
     path('profile/', views.UserProfileView.as_view(), name='user-profile'),
     path('users/<int:id>/', views.UserDetailView.as_view(), name='user-detail'),
     
-    # Router URLs
+    # Follow/Unfollow endpoints - Primary paths
+    path('follow/<int:user_id>/', views.follow_user_view, name='follow-user'),
+    path('unfollow/<int:user_id>/', views.unfollow_user_view, name='unfollow-user'),
+    
+    # Follow/Unfollow endpoints - Alternative paths for non-router access
+    path('users/<int:user_id>/follow/', views.follow_user_view, name='follow-user-alt'),
+    path('users/<int:user_id>/unfollow/', views.unfollow_user_view, name='unfollow-user-alt'),
+    
+    # Router URLs (includes follow/unfollow from UserViewSet actions)
     path('', include(router.urls)),
 ]
+

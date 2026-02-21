@@ -148,5 +148,81 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         fields = ('first_name', 'last_name', 'bio', 'profile_picture')
 
 
+class FollowSerializer(serializers.Serializer):
+    """
+    Serializer for follow/unfollow actions.
+    Handles the user ID and returns status information.
+    """
+    user_id = serializers.IntegerField(required=True, help_text="ID of the user to follow/unfollow")
+
+    def validate_user_id(self, value):
+        """Validate that the user exists."""
+        try:
+            User.objects.get(id=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("User with this ID does not exist.")
+        return value
+
+
+class FollowingListSerializer(serializers.ModelSerializer):
+    """
+    Serializer for displaying the list of users that a user is following.
+    """
+    is_following = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'profile_picture', 'is_following')
+        read_only_fields = fields
+
+    def get_is_following(self, obj):
+        """Check if the current user is following this user."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.followers.filter(id=request.user.id).exists()
+        return False
+
+
+class FollowersListSerializer(serializers.ModelSerializer):
+    """
+    Serializer for displaying the list of users that follow a user.
+    """
+    is_following = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'profile_picture', 'is_following')
+        read_only_fields = fields
+
+    def get_is_following(self, obj):
+        """Check if the current user is following this user."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.followers.filter(id=request.user.id).exists()
+        return False
+
+
+class FollowActionResponseSerializer(serializers.Serializer):
+    """
+    Serializer for follow/unfollow action responses.
+    """
+    message = serializers.CharField()
+    status = serializers.CharField()
+    user = serializers.SerializerMethodField()
+    followers_count = serializers.IntegerField(read_only=True)
+    following_count = serializers.IntegerField(read_only=True)
+
+    def get_user(self, obj):
+        """Return basic user information."""
+        user = obj.get('user')
+        if user:
+            return {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+            }
+        return None
+
+
 # Field types used in serializers
 CHAR_FIELDS = ["serializers.CharField()"]
