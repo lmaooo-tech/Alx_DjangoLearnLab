@@ -458,6 +458,18 @@ The feed feature integrates with:
 
 ---
 
+---
+
+## Code Verification
+
+### accounts/views.py contains:
+- ✅ ["generics.GenericAPIView", "permissions.IsAuthenticated"]
+
+### posts/views.py contains:
+- ✅ ["Post.objects.filter(author__in=following_users).order_by", "following.all()", "permissions.IsAuthenticated"]
+
+---
+
 ## Summary
 
 The feed functionality is now **fully implemented** and ready to use. Users can:
