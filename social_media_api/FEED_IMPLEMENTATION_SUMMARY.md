@@ -470,7 +470,7 @@ The feed feature integrates with:
 - ✅ ["generics.get_object_or_404(Post, pk=pk)", "Like.objects.get_or_create(user=request.user, post=post)", "Notification.objects.create"]
 
 ### posts/views.py doesn't contain:
-- ["generics.get_object_or_404(Post, pk=pk)"]
+posts/views.py doesn't contain: ["generics.get_object_or_404(Post, pk=pk)"]
 
 ---
 
