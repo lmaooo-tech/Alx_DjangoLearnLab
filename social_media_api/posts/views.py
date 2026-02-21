@@ -1,7 +1,6 @@
-from rest_framework import status, viewsets, generics
+from rest_framework import status, viewsets, generics, permissions
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q, Prefetch
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -31,7 +30,7 @@ class PostViewSet(viewsets.ModelViewSet):
     GET /api/posts/user/<username>/ - Get posts by a specific user
     """
     queryset = Post.objects.all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
     lookup_field = 'id'
 
     def get_serializer_class(self):
@@ -69,7 +68,7 @@ class PostViewSet(viewsets.ModelViewSet):
             raise PermissionError("You can only delete your own posts.")
         instance.delete()
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def like(self, request, id=None):
         """
         Like a post.
@@ -95,7 +94,7 @@ class PostViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def unlike(self, request, id=None):
         """
         Unlike a post.
@@ -122,7 +121,7 @@ class PostViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def comment(self, request, id=None):
         """
         Add a comment to a post.
@@ -152,7 +151,7 @@ class PostViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
-    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def comments(self, request, id=None):
         """
         Get all comments for a post.
@@ -175,7 +174,7 @@ class PostViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
 
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def user_posts(self, request):
         """
         Get posts by a specific user.
@@ -216,7 +215,7 @@ class FeedView(generics.ListAPIView):
     - page_size: Number of posts per page
     """
     serializer_class = FeedPostSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
     pagination_class = None  # Can be set to implement pagination
 
     def get_queryset(self):
@@ -226,12 +225,12 @@ class FeedView(generics.ListAPIView):
         """
         user = self.request.user
         
-        # Get the list of users that the current user follows
-        following_users = user.following.values_list('id', flat=True)
+        # Get all users that the current user follows
+        following_users_ids = [u.id for u in user.following.all()]
         
         # Get posts from followed users, ordered by creation date (most recent first)
         queryset = Post.objects.filter(
-            author_id__in=following_users
+            author__in=following_users_ids
         ).select_related(
             'author'
         ).prefetch_related(
@@ -265,7 +264,7 @@ class UserFeedView(generics.ListAPIView):
     Returns posts from a specific user.
     """
     serializer_class = FeedPostSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
         """
@@ -308,7 +307,7 @@ class UserFeedView(generics.ListAPIView):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def feed_view(request):
     """
     Alternative feed endpoint using a function-based view.
@@ -349,7 +348,7 @@ def feed_view(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([permissions.AllowAny])
 def explore_view(request):
     """
     Explore view showing popular/recent posts from all users.
