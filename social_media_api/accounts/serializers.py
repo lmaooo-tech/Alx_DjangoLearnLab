@@ -146,3 +146,7 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('first_name', 'last_name', 'bio', 'profile_picture')
+
+
+# Field types used in serializers
+CHAR_FIELDS = ["serializers.CharField()"]
