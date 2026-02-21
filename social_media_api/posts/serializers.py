@@ -27,14 +27,43 @@ class AuthorSerializer(serializers.ModelSerializer):
 class CommentSerializer(serializers.ModelSerializer):
     """
     Serializer for displaying comments on posts.
+    Supports nested replies with parent_comment field.
     """
     author = AuthorSerializer(read_only=True)
     author_id = serializers.IntegerField(write_only=True, required=False)
+    parent_comment = serializers.PrimaryKeyRelatedField(
+        queryset=Comment.objects.all(),
+        required=False,
+        allow_null=True,
+        help_text="ID of the parent comment for nested replies"
+    )
+    replies = serializers.SerializerMethodField()
+    reply_count = serializers.SerializerMethodField()
+    is_reply = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ('id', 'author', 'author_id', 'content', 'created_at', 'updated_at')
-        read_only_fields = ('id', 'created_at', 'updated_at', 'author')
+        fields = (
+            'id', 'author', 'author_id', 'content', 
+            'parent_comment', 'replies', 'reply_count', 'is_reply',
+            'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at', 'author', 'replies', 'reply_count', 'is_reply')
+
+    def get_replies(self, obj):
+        """Get immediate replies to this comment."""
+        if not obj.is_reply():
+            replies = obj.replies.select_related('author').order_by('-created_at')
+            return CommentSerializer(replies, many=True, context=self.context).data
+        return []
+    
+    def get_reply_count(self, obj):
+        """Get count of replies to this comment."""
+        return obj.get_reply_count() if not obj.is_reply() else 0
+    
+    def get_is_reply(self, obj):
+        """Check if this is a reply to another comment."""
+        return obj.is_reply()
 
     def create(self, validated_data):
         """Create a comment."""

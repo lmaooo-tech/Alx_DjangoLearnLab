@@ -110,6 +110,7 @@ class Comment(models.Model):
     Fields:
         author: The user who created the comment
         post: The post being commented on
+        parent_comment: Optional parent comment for nested replies
         content: The text content of the comment
         created_at: Timestamp when the comment was created
         updated_at: Timestamp when the comment was last updated
@@ -125,6 +126,14 @@ class Comment(models.Model):
         on_delete=models.CASCADE,
         related_name='comments',
         help_text="The post being commented on"
+    )
+    parent_comment = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        related_name='replies',
+        null=True,
+        blank=True,
+        help_text="Optional parent comment for nested replies"
     )
     content = models.TextField(
         help_text="The content of the comment",
@@ -145,7 +154,22 @@ class Comment(models.Model):
         verbose_name_plural = "Comments"
         indexes = [
             models.Index(fields=['post', '-created_at']),
+            models.Index(fields=['parent_comment', '-created_at']),
         ]
 
     def __str__(self):
         return f"Comment by {self.author.username} on post by {self.post.author.username}"
+    
+    def is_reply(self):
+        """Check if this comment is a reply to another comment."""
+        return self.parent_comment is not None
+    
+    def get_reply_count(self):
+        """Get number of replies to this comment."""
+        return self.replies.count()
+    
+    def get_top_level_comment(self):
+        """Get the root comment if this is a nested reply."""
+        if self.parent_comment:
+            return self.parent_comment.get_top_level_comment()
+        return self

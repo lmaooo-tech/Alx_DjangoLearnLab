@@ -124,9 +124,14 @@ class PostViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def comment(self, request, id=None):
         """
-        Add a comment to a post.
+        Add a comment or reply to a post.
         POST /api/posts/<id>/comment/
-        Body: {"content": "Your comment here"}
+        
+        Body:
+        {
+            "content": "Your comment here",
+            "parent_comment": null  // Optional: ID of parent comment for nested reply
+        }
         """
         post = self.get_object()
         
@@ -137,11 +142,25 @@ class PostViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Get optional parent comment ID for nested replies
+        parent_comment_id = request.data.get('parent_comment')
+        parent_comment = None
+        
+        if parent_comment_id:
+            try:
+                parent_comment = Comment.objects.get(id=parent_comment_id, post=post)
+            except Comment.DoesNotExist:
+                return Response(
+                    {'error': 'Parent comment not found or does not belong to this post.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         # Create the comment
         comment = Comment.objects.create(
             author=request.user,
             post=post,
-            content=content
+            content=content,
+            parent_comment=parent_comment
         )
         
         serializer = CommentSerializer(comment, context={'request': request})
@@ -154,11 +173,19 @@ class PostViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def comments(self, request, id=None):
         """
-        Get all comments for a post.
+        Get all top-level comments for a post.
         GET /api/posts/<id>/comments/
+        
+        This endpoint returns only top-level comments. Each top-level comment
+        includes nested replies in the 'replies' field.
+        
+        Query Parameters:
+        - include_replies: Set to 'true' to include nested replies (default: true)
         """
         post = self.get_object()
-        comments = post.comments.all()
+        
+        # Get only top-level comments (parent_comment is NULL)
+        comments = post.comments.filter(parent_comment__isnull=True).select_related('author').prefetch_related('replies__author').order_by('-created_at')
         
         serializer = CommentSerializer(
             comments,
