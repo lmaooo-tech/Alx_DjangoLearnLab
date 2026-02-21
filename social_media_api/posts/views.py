@@ -71,12 +71,12 @@ class PostViewSet(viewsets.ModelViewSet):
         instance.delete()
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
-    def like(self, request, id=None):
+    def like(self, request, pk=None):
         """
         Like a post.
         POST /api/posts/<id>/like/
         """
-        post = generics.get_object_or_404(Post, pk=id)
+        post = generics.get_object_or_404(Post, pk=pk)
         
         # Get or create the like
         like, created = Like.objects.get_or_create(user=request.user, post=post)
