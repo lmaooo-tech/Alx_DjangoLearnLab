@@ -18,6 +18,10 @@ urlpatterns = [
     # Explore endpoint for discovering posts
     path('explore/', views.explore_view, name='explore'),
     
+    # Like and Unlike endpoints
+    path('posts/<int:pk>/like/', views.PostViewSet.as_view({'post': 'like'}), name='post-like'),
+    path('posts/<int:pk>/unlike/', views.PostViewSet.as_view({'post': 'unlike'}), name='post-unlike'),
+    
     # Router URLs (includes post CRUD operations and custom actions)
     path('', include(router.urls)),
 ]
