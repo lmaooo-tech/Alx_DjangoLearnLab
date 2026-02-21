@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
 from rest_framework.authtoken.models import Token
-from .models import CustomUser
+
+User = get_user_model()
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -24,7 +25,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model = CustomUser
+        model = User
         fields = (
             'username', 'email', 'first_name', 'last_name',
             'bio', 'profile_picture', 'password', 'password_confirm'
@@ -44,13 +45,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        """Create and return a new user."""
+        """Create and return a new user using get_user_model().objects.create_user"""
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
 
-        user = CustomUser(**validated_data)
-        user.set_password(password)
-        user.save()
+        user = get_user_model().objects.create_user(
+            password=password,
+            **validated_data
+        )
 
         # Create token for the new user
         Token.objects.create(user=user)
@@ -119,7 +121,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     following_count = serializers.SerializerMethodField()
 
     class Meta:
-        model = CustomUser
+        model = User
         fields = (
             'id', 'username', 'email', 'first_name', 'last_name',
             'bio', 'profile_picture', 'followers_count', 'following_count',
@@ -142,5 +144,5 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
     Allows users to update their bio and profile picture.
     """
     class Meta:
-        model = CustomUser
+        model = User
         fields = ('first_name', 'last_name', 'bio', 'profile_picture')
