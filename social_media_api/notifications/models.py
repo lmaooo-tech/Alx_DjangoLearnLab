@@ -67,6 +67,10 @@ class Notification(models.Model):
     )
     
     # Timestamps
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        help_text='When the notification was created'
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         help_text='When the notification was created'
@@ -79,6 +83,7 @@ class Notification(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
+            models.Index(fields=["timestamp"]),
             models.Index(fields=['recipient', '-created_at']),
             models.Index(fields=['recipient', 'is_read']),
         ]
