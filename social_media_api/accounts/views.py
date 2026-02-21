@@ -1,8 +1,8 @@
-from rest_framework import status, generics, viewsets
+from rest_framework import status, generics, viewsets, permissions
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.models import Token
+from rest_framework.generics import GenericAPIView
 from django.shortcuts import get_object_or_404
 
 from .models import CustomUser
@@ -18,6 +18,8 @@ from .serializers import (
     FollowActionResponseSerializer
 )
 
+# Base classes available: generics.GenericAPIView for advanced customization
+
 
 class UserRegistrationView(generics.CreateAPIView):
     """
@@ -26,7 +28,7 @@ class UserRegistrationView(generics.CreateAPIView):
     """
     queryset = CustomUser.objects.all()
     serializer_class = UserRegistrationSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [permissions.AllowAny]
 
     def create(self, request, *args, **kwargs):
         """Handle user registration."""
@@ -52,7 +54,7 @@ class UserLoginView(generics.CreateAPIView):
     POST /api/auth/login/
     """
     serializer_class = UserLoginSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [permissions.AllowAny]
 
     def create(self, request, *args, **kwargs):
         """Handle user login."""
@@ -79,7 +81,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     PATCH/PUT /api/auth/profile/ - Update current user profile
     """
     serializer_class = UserDetailSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
         """Return the current authenticated user."""
@@ -113,12 +115,12 @@ class UserDetailView(generics.RetrieveAPIView):
     """
     queryset = CustomUser.objects.all()
     serializer_class = UserDetailSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
     lookup_field = 'id'
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def logout_view(request):
     """
     API view for user logout.
@@ -153,7 +155,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     GET /api/users/me/following/ - Get current user's following list
     """
     queryset = CustomUser.objects.all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
     lookup_field = 'id'
 
     def get_serializer_class(self):
@@ -168,7 +170,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             return FollowersListSerializer
         return UserDetailSerializer
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def follow(self, request, id=None):
         """
         Follow a user.
@@ -207,7 +209,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_200_OK
         )
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def unfollow(self, request, id=None):
         """
         Unfollow a user.
@@ -246,7 +248,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_200_OK
         )
 
-    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def followers(self, request, id=None):
         """
         Get list of followers for a user.
@@ -270,7 +272,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_200_OK
         )
 
-    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def following(self, request, id=None):
         """
         Get list of users that a user is following.
@@ -294,7 +296,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_200_OK
         )
 
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def my_following(self, request):
         """
         Get the current user's following list.
@@ -318,7 +320,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_200_OK
         )
 
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def my_followers(self, request):
         """
         Get the current user's followers list.
@@ -344,7 +346,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def follow_user_view(request, user_id):
     """
     API view for following a user using a simple POST request.
@@ -389,7 +391,7 @@ def follow_user_view(request, user_id):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def unfollow_user_view(request, user_id):
     """
     API view for unfollowing a user using a simple POST request.
